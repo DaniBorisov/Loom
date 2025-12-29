@@ -133,11 +133,11 @@ class JellyfinScanner
         : undefined;
 
       if (this.enable4kMovie) {
-        const instanceAvailibility =
+        const instanceAvailability =
           await serviceAvailabilityChecker.checkMovieAvailability(tmdbId);
 
-        if (instanceAvailibility.hasStandard || instanceAvailibility.has4k) {
-          if (instanceAvailibility.hasStandard) {
+        if (instanceAvailability.hasStandard || instanceAvailability.has4k) {
+          if (instanceAvailability.hasStandard) {
             await this.processMovie(tmdbId, {
               is4k: false,
               mediaAddedAt,
@@ -147,7 +147,7 @@ class JellyfinScanner
             });
           }
 
-          if (instanceAvailibility.has4k) {
+          if (instanceAvailability.has4k) {
             await this.processMovie(tmdbId, {
               is4k: true,
               mediaAddedAt,
@@ -162,8 +162,8 @@ class JellyfinScanner
             'debug',
             {
               tmdbId,
-              hasStandard: instanceAvailibility.hasStandard,
-              has4k: instanceAvailibility.has4k,
+              hasStandard: instanceAvailability.hasStandard,
+              has4k: instanceAvailability.has4k,
             }
           );
 
@@ -337,19 +337,19 @@ class JellyfinScanner
           ? seasons
           : seasons.filter((sn) => sn.season_number !== 0);
 
-        let instanceAvailibility: Awaited<
+        let instanceAvailability: Awaited<
           ReturnType<typeof serviceAvailabilityChecker.checkShowAvailability>
         > | null = null;
         let useServiceBasedDetection = false;
 
         if (this.enable4kShow && tvShow.external_ids?.tvdb_id) {
-          instanceAvailibility =
+          instanceAvailability =
             await serviceAvailabilityChecker.checkShowAvailability(
               tvShow.external_ids.tvdb_id
             );
 
           useServiceBasedDetection =
-            instanceAvailibility.hasStandard || instanceAvailibility.has4k;
+            instanceAvailability.hasStandard || instanceAvailability.has4k;
 
           if (useServiceBasedDetection) {
             this.log(
@@ -357,9 +357,9 @@ class JellyfinScanner
               'debug',
               {
                 tvdbId: tvShow.external_ids.tvdb_id,
-                hasStandard: instanceAvailibility.hasStandard,
-                has4k: instanceAvailibility.has4k,
-                seasons: instanceAvailibility.seasons.length,
+                hasStandard: instanceAvailability.hasStandard,
+                has4k: instanceAvailability.has4k,
+                seasons: instanceAvailability.seasons.length,
               }
             );
           }
@@ -386,8 +386,8 @@ class JellyfinScanner
             let totalStandard = 0;
             let total4k = 0;
 
-            if (useServiceBasedDetection && instanceAvailibility) {
-              const serviceSeason = instanceAvailibility.seasons.find(
+            if (useServiceBasedDetection && instanceAvailability) {
+              const serviceSeason = instanceAvailability.seasons.find(
                 (s) => s.seasonNumber === season.season_number
               );
 
