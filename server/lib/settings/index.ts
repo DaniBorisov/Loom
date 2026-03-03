@@ -93,6 +93,7 @@ export interface SonarrSettings extends DVRSettings {
   activeLanguageProfileId?: number;
   animeTags?: number[];
   enableSeasonFolders: boolean;
+  monitorNewItems: 'all' | 'none';
 }
 
 interface Quota {
@@ -297,6 +298,7 @@ export interface NotificationAgentNtfy extends NotificationAgentConfig {
     password?: string;
     authMethodToken?: boolean;
     token?: string;
+    priority?: number;
   };
 }
 
@@ -530,6 +532,7 @@ class Settings {
             options: {
               url: '',
               topic: '',
+              priority: 3,
             },
           },
         },
