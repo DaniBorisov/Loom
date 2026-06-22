@@ -19,7 +19,7 @@ interface SeasonInstanceAvailability {
   episodes4k: number;
 }
 
-interface ShowInstanceAvailability extends InstanceAvailability {
+export interface ShowInstanceAvailability extends InstanceAvailability {
   seasons: SeasonInstanceAvailability[];
 }
 

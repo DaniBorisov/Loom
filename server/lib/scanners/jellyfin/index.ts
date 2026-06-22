@@ -20,6 +20,7 @@ import type {
   StatusBase,
 } from '@server/lib/scanners/baseScanner';
 import BaseScanner from '@server/lib/scanners/baseScanner';
+import type { ShowInstanceAvailability } from '@server/lib/scanners/serviceAvailabilityChecker';
 import serviceAvailabilityChecker from '@server/lib/scanners/serviceAvailabilityChecker';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
@@ -337,9 +338,7 @@ class JellyfinScanner
           ? seasons
           : seasons.filter((sn) => sn.season_number !== 0);
 
-        let instanceAvailability: Awaited<
-          ReturnType<typeof serviceAvailabilityChecker.checkShowAvailability>
-        > | null = null;
+        let instanceAvailability: ShowInstanceAvailability | null = null;
         let useServiceBasedDetection = false;
 
         if (this.enable4kShow && tvShow.external_ids?.tvdb_id) {
