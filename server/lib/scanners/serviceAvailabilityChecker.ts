@@ -3,6 +3,7 @@ import SonarrAPI from '@server/api/servarr/sonarr';
 import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
+import axios from 'axios';
 
 interface InstanceAvailability {
   hasStandard: boolean;
@@ -82,7 +83,17 @@ class ServiceAvailabilityChecker {
             movieId: movie?.id,
           }
         );
-      } catch {
+      } catch (error) {
+        if (axios.isAxiosError((error as Error)?.cause)) {
+          logger.warn(
+            'Could not reach Radarr instance during availability check',
+            {
+              label: 'Service Availability',
+              radarrId: radarrSettings.id,
+              errorMessage: ((error as Error).cause as Error).message,
+            }
+          );
+        }
         // movie not found in this instance, continue
       }
     }
@@ -153,7 +164,17 @@ class ServiceAvailabilityChecker {
             }
           );
         }
-      } catch {
+      } catch (error) {
+        if (axios.isAxiosError((error as Error)?.cause)) {
+          logger.warn(
+            'Could not reach Sonarr instance during availability check',
+            {
+              label: 'Service Availability',
+              sonarrId: sonarrSettings.id,
+              errorMessage: ((error as Error).cause as Error).message,
+            }
+          );
+        }
         // series not found in this instance, continue
       }
     }
