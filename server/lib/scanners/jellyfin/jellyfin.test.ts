@@ -201,7 +201,8 @@ function fakeJellyfinSeriesItem(id: string): JellyfinLibraryItem {
 
 function fakeJellyfinShowMetadata(
   id: string,
-  tmdbId: string
+  tmdbId: string,
+  tvdbId?: string
 ): JellyfinLibraryItemExtended {
   return {
     Name: 'Test Show',
@@ -210,7 +211,7 @@ function fakeJellyfinShowMetadata(
     HasSubtitles: false,
     LocationType: 'FileSystem',
     MediaType: 'Video',
-    ProviderIds: { Tmdb: tmdbId },
+    ProviderIds: { Tmdb: tmdbId, ...(tvdbId ? { Tvdb: tvdbId } : {}) },
   };
 }
 
@@ -838,6 +839,47 @@ describe('Jellyfin Scanner', () => {
         0,
         'Episode counts should come from Sonarr; getEpisodes must not be called'
       );
+    });
+
+    it('uses the Jellyfin Tvdb provider id when TMDB has no tvdb id', async () => {
+      configureJellyfinWithLibrary();
+      configureSonarr([{ is4k: false }, { is4k: true }]);
+
+      let lookedUpTvdbId: number | undefined;
+      let callCount = 0;
+      getSeriesByTvdbIdImpl = async (id) => {
+        callCount++;
+        if (callCount === 1) {
+          lookedUpTvdbId = id;
+          return fakeSonarrSeries({ tvdbId: 54321 });
+        }
+        throw new Error('Series not found');
+      };
+
+      // TMDB returns no tvdb_id; only Jellyfin's ProviderIds.Tvdb has it
+      getTvShowImpl = async () => fakeTmdbShow(6300);
+
+      getLibraryContentsImpl = async (id: string) =>
+        id === 'test-library-id'
+          ? [fakeJellyfinSeriesItem('jf-show-6300')]
+          : [];
+      getItemDataImpl = async (id: string) =>
+        id === 'jf-show-6300'
+          ? fakeJellyfinShowMetadata('jf-show-6300', '6300', '54321')
+          : undefined;
+      getSeasonsImpl = async (seriesID: string) =>
+        seriesID === 'jf-show-6300'
+          ? [fakeJellyfinSeason(1, 'jf-show-6300-s1')]
+          : [];
+
+      await jellyfinFullScanner.run();
+
+      const updated = await getRepository(Media).findOneOrFail({
+        where: { tmdbId: 6300 },
+        relations: ['seasons'],
+      });
+      assert.strictEqual(lookedUpTvdbId, 54321);
+      assert.strictEqual(updated.status, MediaStatus.AVAILABLE);
     });
 
     it('falls back to Jellyfin episode counting when a show is not in any Sonarr instance', async () => {

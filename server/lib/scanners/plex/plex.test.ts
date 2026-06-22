@@ -461,6 +461,42 @@ describe('Plex Scanner', () => {
       );
     });
 
+    it('uses the Plex Guid tvdb id when TMDB has no tvdb id', async () => {
+      configurePlex('show');
+      configureSonarr([{ is4k: false }, { is4k: true }]);
+
+      let lookedUpTvdbId: number | undefined;
+      let callCount = 0;
+      getSeriesByTvdbIdImpl = async (id) => {
+        callCount++;
+        if (callCount === 1) {
+          lookedUpTvdbId = id;
+          return fakeSonarrSeries({ tvdbId: 55502 });
+        }
+        throw new Error('Series not found');
+      };
+
+      // TMDB returns no tvdb_id; only the Plex Guid has it
+      getTvShowImpl = async () => fakeTmdbShow(7300);
+      getLibraryContentsImpl = async () => ({
+        totalSize: 1,
+        items: [fakePlexShowItem('show-7300')],
+      });
+      getMetadataImpl = async () =>
+        fakePlexShowMetadata('show-7300', 7300, 55502, [
+          fakePlexSeasonMeta(1, 'season-7300-1'),
+        ]);
+
+      await plexFullScanner.run();
+
+      const updated = await getRepository(Media).findOneOrFail({
+        where: { tmdbId: 7300 },
+        relations: ['seasons'],
+      });
+      assert.strictEqual(lookedUpTvdbId, 55502);
+      assert.strictEqual(updated.status, MediaStatus.AVAILABLE);
+    });
+
     it('falls back to Plex episode counting when a show is not in any Sonarr instance', async () => {
       configurePlex('show');
       // No Sonarr match: getSeriesByTvdbIdImpl keeps its throwing default.

@@ -338,14 +338,17 @@ class JellyfinScanner
           ? seasons
           : seasons.filter((sn) => sn.season_number !== 0);
 
+        const tvdbId =
+          (metadata.ProviderIds.Tvdb
+            ? Number(metadata.ProviderIds.Tvdb)
+            : undefined) ?? tvShow.external_ids?.tvdb_id;
+
         let instanceAvailability: ShowInstanceAvailability | null = null;
         let useServiceBasedDetection = false;
 
-        if (this.enable4kShow && tvShow.external_ids?.tvdb_id) {
+        if (this.enable4kShow && tvdbId) {
           instanceAvailability =
-            await serviceAvailabilityChecker.checkShowAvailability(
-              tvShow.external_ids.tvdb_id
-            );
+            await serviceAvailabilityChecker.checkShowAvailability(tvdbId);
 
           useServiceBasedDetection =
             instanceAvailability.hasStandard || instanceAvailability.has4k;
@@ -355,7 +358,7 @@ class JellyfinScanner
               `Using service availability check for show: ${tvShow.name}`,
               'debug',
               {
-                tvdbId: tvShow.external_ids.tvdb_id,
+                tvdbId,
                 hasStandard: instanceAvailability.hasStandard,
                 has4k: instanceAvailability.has4k,
                 seasons: instanceAvailability.seasons.length,
@@ -487,18 +490,13 @@ class JellyfinScanner
           }
         }
 
-        await this.processShow(
-          tvShow.id,
-          tvShow.external_ids?.tvdb_id,
-          processableSeasons,
-          {
-            mediaAddedAt: metadata.DateCreated
-              ? new Date(metadata.DateCreated)
-              : undefined,
-            jellyfinMediaId: Id,
-            title: tvShow.name,
-          }
-        );
+        await this.processShow(tvShow.id, tvdbId, processableSeasons, {
+          mediaAddedAt: metadata.DateCreated
+            ? new Date(metadata.DateCreated)
+            : undefined,
+          jellyfinMediaId: Id,
+          title: tvShow.name,
+        });
       } else {
         this.log(
           `No information found for the show: ${metadata.Name}`,
