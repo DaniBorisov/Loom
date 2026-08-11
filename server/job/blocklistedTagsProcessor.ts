@@ -175,6 +175,8 @@ class BlocklistedTagProcessor implements RunnableScanner<StatusBase> {
           this.progress += queryMax - response.total_pages;
           fixedSortMode = true;
           queryMax = response.total_pages;
+          // restart the counter so sequential paging resumes at page 2 even if earlier queries failed
+          query = 0;
         }
       } catch (error) {
         logger.error('Error processing keyword in blocklisted tags', {
