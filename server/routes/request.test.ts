@@ -9,6 +9,7 @@ import {
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { MediaRequest } from '@server/entity/MediaRequest';
+import SeasonRequest from '@server/entity/SeasonRequest';
 import { User } from '@server/entity/User';
 import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
@@ -210,6 +211,75 @@ describe('PUT /request/:requestId (movie)', () => {
     assert.strictEqual(saved.serverId, 3);
     assert.strictEqual(saved.profileId, 7);
     assert.strictEqual(saved.rootFolder, '/updated/movies');
+  });
+});
+
+describe('PUT /request/:requestId (tv)', () => {
+  it('does not add a season held by another request', async () => {
+    const userRepo = getRepository(User);
+    const mediaRepo = getRepository(Media);
+    const requestRepo = getRepository(MediaRequest);
+
+    const owner = await userRepo.findOneOrFail({
+      where: { email: 'admin@seerr.dev' },
+    });
+    const otherUser = await userRepo.findOneOrFail({
+      where: { email: 'friend@seerr.dev' },
+    });
+
+    const media = await mediaRepo.save(
+      new Media({
+        mediaType: MediaType.TV,
+        tmdbId: 67890,
+        status: MediaStatus.PENDING,
+        status4k: MediaStatus.UNKNOWN,
+      })
+    );
+
+    const seedTvRequest = (requestedBy: User, seasons: number[]) =>
+      requestRepo.save(
+        new MediaRequest({
+          type: MediaType.TV,
+          status: MediaRequestStatus.PENDING,
+          media,
+          requestedBy,
+          is4k: false,
+          seasons: seasons.map(
+            (seasonNumber) =>
+              new SeasonRequest({
+                seasonNumber,
+                status: MediaRequestStatus.PENDING,
+              })
+          ),
+        })
+      );
+
+    const mediaRequest = await seedTvRequest(owner, [1, 2]);
+    const otherRequest = await seedTvRequest(otherUser, [3]);
+
+    const agent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await agent.put(`/request/${mediaRequest.id}`).send({
+      mediaType: MediaType.TV,
+      seasons: [1, 2, 3],
+    });
+
+    assert.strictEqual(res.status, 200);
+
+    const saved = await requestRepo.findOneOrFail({
+      where: { id: mediaRequest.id },
+    });
+    assert.deepStrictEqual(
+      saved.seasons.map((s) => s.seasonNumber).sort(),
+      [1, 2]
+    );
+
+    const otherSaved = await requestRepo.findOneOrFail({
+      where: { id: otherRequest.id },
+    });
+    assert.deepStrictEqual(
+      otherSaved.seasons.map((s) => s.seasonNumber),
+      [3]
+    );
   });
 });
 

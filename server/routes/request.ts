@@ -564,7 +564,7 @@ requestRoutes.put<{ requestId: string }>(
           });
         }
 
-        const newSeasons = requestedSeasons.filter(
+        const newSeasons = filteredSeasons.filter(
           (sn) => !request.seasons.map((s) => s.seasonNumber).includes(sn)
         );
 
