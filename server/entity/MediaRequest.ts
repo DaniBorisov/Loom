@@ -14,7 +14,7 @@ import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
-import requestLock from '@server/utils/requestLock';
+import requestLock, { mediaLock } from '@server/utils/requestLock';
 import { truncate } from 'lodash';
 import {
   AfterInsert,
@@ -50,8 +50,13 @@ export class MediaRequest {
     user: User,
     options: MediaRequestOptions = {}
   ): Promise<MediaRequest> {
-    return requestLock.dispatch(requestBody.userId || user.id, () =>
-      MediaRequest.createRequest(requestBody, user, options)
+    // is4k is optional, and an undefined one binds as null in the duplicate query
+    const body = { ...requestBody, is4k: !!requestBody.is4k };
+
+    return requestLock.dispatch(body.userId || user.id, () =>
+      mediaLock.dispatch(`${body.mediaType}:${body.mediaId}:${body.is4k}`, () =>
+        MediaRequest.createRequest(body, user, options)
+      )
     );
   }
 
