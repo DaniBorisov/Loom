@@ -33,10 +33,6 @@ const defaultSettings = {
   newPlexLogin: true,
   youtubeUrl: '',
   versionCheck: true,
-  metadataSettings: {
-    tv: 'tmdb',
-    anime: 'tmdb',
-  },
   plexClientIdentifier: '',
 };
 
