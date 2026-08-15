@@ -359,6 +359,13 @@ class PlexScanner
           episodes: totalStandard,
           episodes4k: total4k,
           totalEpisodes: season.episode_count,
+          episodeDetails: settings.main.enableEpisodeAvailability
+            ? episodes.flatMap((episode) =>
+                episode.index == null
+                  ? []
+                  : [{ episodeNumber: episode.index, hasFile: true }]
+              )
+            : undefined,
         });
       } else {
         processableSeasons.push({
