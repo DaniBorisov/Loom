@@ -8,6 +8,7 @@ import { MediaRequest } from '@server/entity/MediaRequest';
 import Season from '@server/entity/Season';
 import SeasonRequest from '@server/entity/SeasonRequest';
 import logger from '@server/logger';
+import { withNestedTransaction } from '@server/utils/nestedTransaction';
 import type {
   EntityManager,
   EntitySubscriberInterface,
@@ -143,8 +144,7 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
         event.entity.status === MediaStatus.AVAILABLE &&
         event.databaseEntity?.status === MediaStatus.PENDING
       ) {
-        // Savepoint on the save's own connection so failures don't abort the media save
-        await event.manager.transaction(async (manager) => {
+        await withNestedTransaction(event.manager, async (manager) => {
           await this.updateChildRequestStatus(
             manager,
             event.entity as Media,
@@ -169,7 +169,7 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
         event.entity.status4k === MediaStatus.AVAILABLE &&
         event.databaseEntity?.status4k === MediaStatus.PENDING
       ) {
-        await event.manager.transaction(async (manager) => {
+        await withNestedTransaction(event.manager, async (manager) => {
           await this.updateChildRequestStatus(
             manager,
             event.entity as Media,
@@ -230,7 +230,7 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
             seasonStatusCheck(false))) &&
         validStatuses.includes(event.entity.status)
       ) {
-        await event.manager.transaction(async (manager) => {
+        await withNestedTransaction(event.manager, async (manager) => {
           await this.updateRelatedMediaRequest(
             manager,
             event.entity as Media,
@@ -258,7 +258,7 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
             seasonStatusCheck(true))) &&
         validStatuses.includes(event.entity.status4k)
       ) {
-        await event.manager.transaction(async (manager) => {
+        await withNestedTransaction(event.manager, async (manager) => {
           await this.updateRelatedMediaRequest(
             manager,
             event.entity as Media,
