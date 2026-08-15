@@ -20,6 +20,7 @@ import SeasonRequest from '@server/entity/SeasonRequest';
 import notificationManager, { Notification } from '@server/lib/notifications';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
+import { withNestedTransaction } from '@server/utils/nestedTransaction';
 import { isEqual, truncate } from 'lodash';
 import type {
   EntityManager,
@@ -1034,8 +1035,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
     }
 
     try {
-      // Savepoint on the save's own connection so failures don't abort the request save
-      await event.manager.transaction(async (manager) => {
+      await withNestedTransaction(event.manager, async (manager) => {
         await this.updateParentStatus(manager, event.entity as MediaRequest);
       });
 
@@ -1076,7 +1076,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
     }
 
     try {
-      await event.manager.transaction(async (manager) => {
+      await withNestedTransaction(event.manager, async (manager) => {
         await this.updateParentStatus(manager, event.entity as MediaRequest);
       });
     } catch (e) {
