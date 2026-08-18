@@ -3,6 +3,7 @@ import blocklistedTagsProcessor from '@server/job/blocklistedTagsProcessor';
 import availabilitySync from '@server/lib/availabilitySync';
 import downloadTracker from '@server/lib/downloadtracker';
 import ImageProxy from '@server/lib/imageproxy';
+import * as malListSync from '@server/lib/malListSync';
 import refreshToken from '@server/lib/refreshToken';
 import {
   jellyfinFullScanner,
@@ -257,6 +258,22 @@ export const startJobs = (): void => {
     }),
     running: () => blocklistedTagsProcessor.status().running,
     cancelFn: () => blocklistedTagsProcessor.cancel(),
+  });
+
+  scheduledJobs.push({
+    id: 'mal-list-sync',
+    name: 'MAL List Sync',
+    type: 'process',
+    interval: 'hours',
+    cronSchedule: jobs['mal-list-sync'].schedule,
+    job: schedule.scheduleJob(jobs['mal-list-sync'].schedule, () => {
+      logger.info('Starting scheduled job: MAL List Sync', {
+        label: 'Jobs',
+      });
+      malListSync.run();
+    }),
+    running: () => malListSync.getStatus().running,
+    cancelFn: () => malListSync.cancel(),
   });
 
   logger.info('Scheduled jobs loaded', { label: 'Jobs' });

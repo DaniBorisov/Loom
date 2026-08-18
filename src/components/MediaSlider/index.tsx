@@ -8,6 +8,7 @@ import { ArrowRightCircleIcon } from '@heroicons/react/24/outline';
 import { MediaStatus } from '@server/constants/media';
 import { Permission } from '@server/lib/permissions';
 import type {
+  AnimeResult,
   MovieResult,
   PersonResult,
   TvResult,
@@ -20,7 +21,7 @@ interface MixedResult {
   page: number;
   totalResults: number;
   totalPages: number;
-  results: (TvResult | MovieResult | PersonResult)[];
+  results: (TvResult | MovieResult | PersonResult | AnimeResult)[];
 }
 
 interface MediaSliderProps {
@@ -62,13 +63,15 @@ const MediaSlider = ({
 
   let titles = (data ?? []).reduce(
     (a, v) => [...a, ...v.results],
-    [] as (MovieResult | TvResult | PersonResult)[]
+    [] as (MovieResult | TvResult | PersonResult | AnimeResult)[]
   );
 
   if (settings.currentSettings.hideAvailable) {
     titles = titles.filter(
       (i) =>
-        (i.mediaType === 'movie' || i.mediaType === 'tv') &&
+        (i.mediaType === 'movie' ||
+          i.mediaType === 'tv' ||
+          i.mediaType === 'anime') &&
         i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
         i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
     );
@@ -77,7 +80,9 @@ const MediaSlider = ({
   if (settings.currentSettings.hideBlocklisted) {
     titles = titles.filter(
       (i) =>
-        (i.mediaType === 'movie' || i.mediaType === 'tv') &&
+        (i.mediaType === 'movie' ||
+          i.mediaType === 'tv' ||
+          i.mediaType === 'anime') &&
         i.mediaInfo?.status !== MediaStatus.BLOCKLISTED
     );
   }
@@ -118,6 +123,25 @@ const MediaSlider = ({
       return title;
     })
     .map((title) => {
+      if (title.mediaType === 'anime') {
+        return (
+          <TitleCard
+            key={`anilist-${title.sourceId}`}
+            id={title.sourceId ?? title.id}
+            isAddedToWatchlist={title.mediaInfo?.watchlists?.length ?? 0}
+            image={title.posterPath}
+            status={title.mediaInfo?.status}
+            summary={title.overview}
+            title={title.title}
+            userScore={title.voteAverage}
+            year={title.firstAirDate}
+            mediaType="anime"
+            inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
+            source="anilist"
+          />
+        );
+      }
+
       switch (title.mediaType) {
         case 'movie':
           return (

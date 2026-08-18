@@ -477,7 +477,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
   public async sendToSonarr(entity: MediaRequest): Promise<void> {
     if (
       entity.status === MediaRequestStatus.APPROVED &&
-      entity.type === MediaType.TV
+      (entity.type === MediaType.TV || entity.type === MediaType.ANIME)
     ) {
       try {
         const mediaRepository = getRepository(Media);
@@ -863,7 +863,8 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
      * other requests have yet to be approved)
      */
     if (
-      media.mediaType === MediaType.TV &&
+      (media.mediaType === MediaType.TV ||
+        media.mediaType === MediaType.ANIME) &&
       entity.status === MediaRequestStatus.DECLINED &&
       media[statusKey] === MediaStatus.PENDING
     ) {
@@ -890,7 +891,8 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
 
     // Reset season statuses when a TV request is declined
     if (
-      media.mediaType === MediaType.TV &&
+      (media.mediaType === MediaType.TV ||
+        media.mediaType === MediaType.ANIME) &&
       entity.status === MediaRequestStatus.DECLINED
     ) {
       const seasonRepository = getRepository(Season);
@@ -934,7 +936,8 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
 
     // Approve child seasons if parent is approved
     if (
-      media.mediaType === MediaType.TV &&
+      (media.mediaType === MediaType.TV ||
+        media.mediaType === MediaType.ANIME) &&
       entity.status === MediaRequestStatus.APPROVED
     ) {
       for (const season of entity.seasons) {
@@ -1027,7 +1030,10 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
         if (event.entity.media.mediaType === MediaType.MOVIE) {
           await this.notifyAvailableMovie(event.entity as MediaRequest, event);
         }
-        if (event.entity.media.mediaType === MediaType.TV) {
+        if (
+          event.entity.media.mediaType === MediaType.TV ||
+          event.entity.media.mediaType === MediaType.ANIME
+        ) {
           await this.notifyAvailableSeries(event.entity as MediaRequest, event);
         }
       }

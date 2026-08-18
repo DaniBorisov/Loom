@@ -51,7 +51,7 @@ type Sort = 'added' | 'modified';
 
 type SortDirection = 'asc' | 'desc';
 
-type MediaType = 'all' | 'movie' | 'tv';
+type MediaType = 'all' | 'movie' | 'tv' | 'anime';
 
 const RequestList = () => {
   const router = useRouter();

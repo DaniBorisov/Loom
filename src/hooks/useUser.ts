@@ -14,6 +14,7 @@ export interface User {
   warnings: string[];
   plexUsername?: string | null;
   jellyfinUsername?: string | null;
+  malUsername?: string | null;
   username?: string;
   displayName: string;
   email: string;
@@ -36,6 +37,7 @@ export interface UserSettings {
   notificationTypes: Partial<NotificationAgentTypes>;
   watchlistSyncMovies?: boolean;
   watchlistSyncTv?: boolean;
+  malSyncEnabled?: boolean;
 }
 
 interface UserHookResponse {

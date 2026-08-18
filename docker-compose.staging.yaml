@@ -1,0 +1,63 @@
+# Usage: docker compose -f docker-compose.staging.yaml -p loom-staging up -d
+# Stop:  docker compose -f docker-compose.staging.yaml -p loom-staging down
+services:
+  loom:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    ports:
+      - '5056:5055'
+    environment:
+      DB_TYPE: 'postgres'
+      DB_HOST: 'postgres'
+      DB_PORT: '5432'
+      DB_USER: 'loom'
+      DB_PASS: 'loom'
+      DB_NAME: 'loom_staging'
+      DB_LOG_QUERIES: 'false'
+      DB_USE_SSL: 'false'
+      DB_POOL_SIZE: '10'
+    volumes:
+      - .:/app:rw,cached
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - postgres
+    links:
+      - postgres
+
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: loom
+      POSTGRES_PASSWORD: loom
+      POSTGRES_DB: loom_staging
+    ports:
+      - '5433:5432'
+    volumes:
+      - loom_staging:/var/lib/postgresql
+
+  # sonarr:
+  #   image: lscr.io/linuxserver/sonarr
+  #   ports:
+  #     - '8989:8989'
+  #   volumes:
+  #     - sonarr-config:/config
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+
+  # radarr:
+  #   image: lscr.io/linuxserver/radarr
+  #   ports:
+  #     - '7878:7878'
+  #   volumes:
+  #     - radarr-config:/config
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+
+volumes:
+  loom_staging:
+  # sonarr-config:
+  # radarr-config:

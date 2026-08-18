@@ -1,3 +1,4 @@
+import type { AniListSearchResult } from '@server/api/anilist/interfaces';
 import type {
   TmdbCollectionResult,
   TmdbMovieDetails,
@@ -10,7 +11,7 @@ import type {
 import { MediaType as MainMediaType } from '@server/constants/media';
 import type Media from '@server/entity/Media';
 
-export type MediaType = 'tv' | 'movie' | 'person' | 'collection';
+export type MediaType = 'tv' | 'movie' | 'person' | 'collection' | 'anime';
 
 interface SearchResult {
   id: number;
@@ -23,6 +24,8 @@ interface SearchResult {
   genreIds: number[];
   overview: string;
   originalLanguage: string;
+  source: 'tmdb' | 'anilist';
+  sourceId?: number;
   mediaInfo?: Media;
 }
 
@@ -54,6 +57,7 @@ export interface CollectionResult {
   backdropPath?: string;
   overview: string;
   originalLanguage: string;
+  source: 'tmdb';
 }
 
 export interface PersonResult {
@@ -63,10 +67,34 @@ export interface PersonResult {
   profilePath?: string;
   adult: boolean;
   mediaType: 'person';
+  source: 'tmdb';
   knownFor: (MovieResult | TvResult)[];
 }
 
-export type Results = MovieResult | TvResult | PersonResult | CollectionResult;
+export interface AnimeResult {
+  id: number;
+  mediaType: 'anime';
+  title: string;
+  overview: string;
+  posterPath?: string;
+  backdropPath?: string;
+  popularity: number;
+  voteCount: number;
+  voteAverage: number;
+  genreIds: number[];
+  originalLanguage: string;
+  source: 'anilist';
+  sourceId: number;
+  firstAirDate?: string;
+  mediaInfo?: Media;
+}
+
+export type Results =
+  | MovieResult
+  | TvResult
+  | PersonResult
+  | CollectionResult
+  | AnimeResult;
 
 export const mapMovieResult = (
   movieResult: TmdbMovieResult,
@@ -79,14 +107,15 @@ export const mapMovieResult = (
   originalLanguage: movieResult.original_language,
   originalTitle: movieResult.original_title,
   overview: movieResult.overview,
+  posterPath: movieResult.poster_path,
+  backdropPath: movieResult.backdrop_path,
   popularity: movieResult.popularity,
   releaseDate: movieResult.release_date,
   title: movieResult.title,
-  video: movieResult.video,
   voteAverage: movieResult.vote_average,
   voteCount: movieResult.vote_count,
-  backdropPath: movieResult.backdrop_path,
-  posterPath: movieResult.poster_path,
+  video: movieResult.video,
+  source: 'tmdb',
   mediaInfo: media,
 });
 
@@ -109,6 +138,7 @@ export const mapTvResult = (
   voteCount: tvResult.vote_count,
   backdropPath: tvResult.backdrop_path,
   posterPath: tvResult.poster_path,
+  source: 'tmdb',
   mediaInfo: media,
 });
 
@@ -124,6 +154,7 @@ export const mapCollectionResult = (
   overview: collectionResult.overview,
   backdropPath: collectionResult.backdrop_path,
   posterPath: collectionResult.poster_path,
+  source: 'tmdb',
 });
 
 export const mapPersonResult = (
@@ -134,6 +165,7 @@ export const mapPersonResult = (
   popularity: personResult.popularity,
   adult: personResult.adult,
   mediaType: personResult.media_type,
+  source: 'tmdb',
   profilePath: personResult.profile_path,
   knownFor: personResult.known_for.map((result) => {
     if (result.media_type === 'movie') {
@@ -142,6 +174,29 @@ export const mapPersonResult = (
 
     return mapTvResult(result);
   }),
+});
+
+export const mapAniListResult = (
+  anilistResult: AniListSearchResult,
+  media?: Media
+): AnimeResult => ({
+  id: anilistResult.id,
+  mediaType: 'anime',
+  title: anilistResult.title,
+  overview: anilistResult.overview,
+  posterPath: anilistResult.posterPath,
+  backdropPath: anilistResult.backdropPath,
+  popularity: anilistResult.averageScore,
+  voteAverage: anilistResult.averageScore / 10,
+  voteCount: anilistResult.averageScore,
+  genreIds: [],
+  originalLanguage: 'ja',
+  source: 'anilist',
+  sourceId: anilistResult.id,
+  firstAirDate: anilistResult.seasonYear
+    ? `${anilistResult.seasonYear}-01-01`
+    : undefined,
+  mediaInfo: media,
 });
 
 export const mapSearchResults = (

@@ -220,7 +220,7 @@ class AvailabilitySync {
 
         // If both versions still exist in plex, we still need
         // to check through sonarr to verify season availability
-        if (media.mediaType === 'tv') {
+        if (media.mediaType === 'tv' || media.mediaType === 'anime') {
           let showExists = false;
           let showExists4k = false;
 
@@ -579,7 +579,9 @@ class AvailabilitySync {
     } catch (ex) {
       logger.debug(
         `Failure updating the ${is4k ? '4K' : 'non-4K'} ${
-          media.mediaType === 'tv' ? 'show' : 'movie'
+          media.mediaType === 'tv' || media.mediaType === 'anime'
+            ? 'show'
+            : 'movie'
         } [TMDB ID ${media.tmdbId}].`,
         {
           errorMessage: ex.message,
@@ -631,7 +633,9 @@ class AvailabilitySync {
           `Marking the ${
             is4k ? '4K' : 'non-4K'
           } show [TMDB ID ${media.tmdbId}] as PARTIALLY_AVAILABLE because season(s) [${nonSpecialSeasonKeys}] was not found in any ${
-            media.mediaType === 'tv' ? 'Sonarr' : 'Radarr'
+            media.mediaType === 'tv' || media.mediaType === 'anime'
+              ? 'Sonarr'
+              : 'Radarr'
           } and ${
             mediaServerType === MediaServerType.PLEX
               ? 'plex'
@@ -883,7 +887,7 @@ class AvailabilitySync {
       if (ratingKey && !is4k) {
         plexMedia = await this.plexClient?.getMetadata(ratingKey);
 
-        if (media.mediaType === 'tv') {
+        if (media.mediaType === 'tv' || media.mediaType === 'anime') {
           this.plexSeasonsCache[ratingKey] =
             await this.plexClient?.getChildrenMetadata(ratingKey);
         }
@@ -902,7 +906,7 @@ class AvailabilitySync {
       if (ratingKey4k && is4k) {
         plexMedia = await this.plexClient?.getMetadata(ratingKey4k);
 
-        if (media.mediaType === 'tv') {
+        if (media.mediaType === 'tv' || media.mediaType === 'anime') {
           this.plexSeasonsCache[ratingKey4k] =
             await this.plexClient?.getChildrenMetadata(ratingKey4k);
         }
@@ -917,7 +921,10 @@ class AvailabilitySync {
             plexMedia = undefined;
           }
 
-          if (plexMedia && media.mediaType === 'tv') {
+          if (
+            plexMedia &&
+            (media.mediaType === 'tv' || media.mediaType === 'anime')
+          ) {
             const cachedSeasons = this.plexSeasonsCache[ratingKey4k];
             if (cachedSeasons?.length) {
               let has4kInAnySeason = false;
@@ -960,7 +967,9 @@ class AvailabilitySync {
         preventSeasonSearch = true;
         logger.debug(
           `Failure retrieving the ${is4k ? '4K' : 'non-4K'} ${
-            media.mediaType === 'tv' ? 'show' : 'movie'
+            media.mediaType === 'tv' || media.mediaType === 'anime'
+              ? 'show'
+              : 'movie'
           } [TMDB ID ${media.tmdbId}] from Plex.`,
           {
             errorMessage: ex.message,
@@ -973,7 +982,7 @@ class AvailabilitySync {
     // Here we check each season in plex for availability
     // If the API returns an error other than a 404,
     // we will have to prevent the season check from happening
-    if (media.mediaType === 'tv') {
+    if (media.mediaType === 'tv' || media.mediaType === 'anime') {
       const seasonsMap: Map<number, boolean> = new Map();
 
       if (!preventSeasonSearch) {
@@ -1085,7 +1094,10 @@ class AvailabilitySync {
       if (ratingKey && !is4k) {
         jellyfinMedia = await this.jellyfinClient?.getItemData(ratingKey);
 
-        if (media.mediaType === 'tv' && jellyfinMedia !== undefined) {
+        if (
+          (media.mediaType === 'tv' || media.mediaType === 'anime') &&
+          jellyfinMedia !== undefined
+        ) {
           this.jellyfinSeasonsCache[ratingKey] =
             await this.jellyfinClient?.getSeasons(ratingKey);
         }
@@ -1094,7 +1106,10 @@ class AvailabilitySync {
       if (ratingKey4k && is4k) {
         jellyfinMedia = await this.jellyfinClient?.getItemData(ratingKey4k);
 
-        if (media.mediaType === 'tv' && jellyfinMedia !== undefined) {
+        if (
+          (media.mediaType === 'tv' || media.mediaType === 'anime') &&
+          jellyfinMedia !== undefined
+        ) {
           this.jellyfinSeasonsCache[ratingKey4k] =
             await this.jellyfinClient?.getSeasons(ratingKey4k);
         }
@@ -1109,7 +1124,9 @@ class AvailabilitySync {
         preventSeasonSearch = true;
         logger.debug(
           `Failure retrieving the ${is4k ? '4K' : 'non-4K'} ${
-            media.mediaType === 'tv' ? 'show' : 'movie'
+            media.mediaType === 'tv' || media.mediaType === 'anime'
+              ? 'show'
+              : 'movie'
           } [TMDB ID ${media.tmdbId}] from Jellyfin.`,
           {
             errorMessage: ex.message,
@@ -1122,7 +1139,7 @@ class AvailabilitySync {
     // Here we check each season in jellyfin for availability
     // If the API returns an error other than a 404,
     // we will have to prevent the season check from happening
-    if (media.mediaType === 'tv') {
+    if (media.mediaType === 'tv' || media.mediaType === 'anime') {
       const seasonsMap: Map<number, boolean> = new Map();
 
       if (!preventSeasonSearch) {

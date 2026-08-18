@@ -39,6 +39,7 @@ import {
   ExclamationTriangleIcon,
   EyeSlashIcon,
   FilmIcon,
+  HeartIcon,
   MinusCircleIcon,
   PlayIcon,
   StarIcon,
@@ -47,6 +48,7 @@ import {
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
+  HeartIcon as HeartIconSolid,
 } from '@heroicons/react/24/solid';
 import { type RatingResponse } from '@server/api/ratings';
 import { IssueStatus } from '@server/constants/issue';
@@ -104,8 +106,14 @@ const messages = defineMessages('components.MovieDetails', {
   watchlistDeleted:
     '<strong>{title}</strong> Removed from watchlist successfully!',
   watchlistError: 'Something went wrong. Please try again.',
+  watchlistStatusChanged: 'Watchlist status updated.',
   removefromwatchlist: 'Remove From Watchlist',
   addtowatchlist: 'Add To Watchlist',
+  addtofavorites: 'Add To Favorites',
+  removefromfavorites: 'Remove From Favorites',
+  favoriteSuccess: '<strong>{title}</strong> added to favorites!',
+  favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
+  favoriteError: 'Failed to update favorites.',
 });
 
 interface MovieDetailsProps {
@@ -126,10 +134,36 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   const [toggleWatchlist, setToggleWatchlist] = useState<boolean>(
     !movie?.onUserWatchlist
   );
+  const [watchlistEntryId, setWatchlistEntryId] = useState<number | null>(
+    movie?.watchlistId ?? null
+  );
+  const [watchlistStatus, setWatchlistStatus] = useState<string>(
+    movie?.watchlistStatus ?? 'want_to_watch'
+  );
   const [isBlocklistUpdating, setIsBlocklistUpdating] =
     useState<boolean>(false);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
   const { addToast } = useToasts();
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!movie?.id) return;
+    const checkFavorite = async () => {
+      try {
+        const res = await axios.get(
+          `/api/v1/favorites/check?mediaId=${movie.id}&source=tmdb`
+        );
+        setIsFavorited(res.data.isFavorited);
+        if (res.data.favoriteId) {
+          setFavoriteId(res.data.favoriteId);
+        }
+      } catch {
+        // Ignore
+      }
+    };
+    checkFavorite();
+  }, [movie?.id]);
 
   const {
     data,
@@ -149,6 +183,14 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   const { data: ratingData } = useSWR<RatingResponse>(
     `/api/v1/movie/${router.query.movieId}/ratingscombined`
   );
+
+  useEffect(() => {
+    if (data) {
+      setToggleWatchlist(!data.onUserWatchlist);
+      setWatchlistEntryId(data.watchlistId ?? null);
+      setWatchlistStatus(data.watchlistStatus ?? 'want_to_watch');
+    }
+  }, [data?.onUserWatchlist, data?.watchlistId, data?.watchlistStatus]);
 
   const sortedCrew = useMemo(
     () => sortCrewPriority(data?.credits.crew ?? []),
@@ -386,6 +428,77 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     }
   };
 
+  const handleWatchlistStatusChange = async (
+    newStatus: string
+  ): Promise<void> => {
+    if (!watchlistEntryId) return;
+
+    try {
+      await axios.patch(`/api/v1/watchlist/${watchlistEntryId}`, {
+        status: newStatus,
+      });
+      setWatchlistStatus(newStatus);
+      addToast(intl.formatMessage(messages.watchlistStatusChanged), {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    } catch {
+      addToast(intl.formatMessage(messages.watchlistError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const onClickFavoriteBtn = async (): Promise<void> => {
+    try {
+      const res = await axios.post('/api/v1/favorites', {
+        mediaId: movie?.id,
+        mediaType: MediaType.MOVIE,
+        source: 'tmdb',
+      });
+      setIsFavorited(true);
+      setFavoriteId(res.data.id);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteSuccess, {
+            title: movie?.title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const onClickRemoveFavoriteBtn = async (): Promise<void> => {
+    if (!favoriteId) return;
+    try {
+      await axios.delete(`/api/v1/favorites/${favoriteId}`);
+      setIsFavorited(false);
+      setFavoriteId(null);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteRemoved, {
+            title: movie?.title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'info', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
   const onClickHideItemBtn = async (): Promise<void> => {
     setIsBlocklistUpdating(true);
 
@@ -606,20 +719,54 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                     </Button>
                   </Tooltip>
                 ) : (
-                  <Tooltip
-                    content={intl.formatMessage(messages.removefromwatchlist)}
-                  >
-                    <Button
-                      className="z-40 mr-2"
-                      buttonSize={'md'}
-                      onClick={onClickDeleteWatchlistBtn}
+                  <div className="z-40 mr-2 flex items-center gap-1">
+                    <Tooltip
+                      content={intl.formatMessage(messages.removefromwatchlist)}
                     >
-                      {isUpdating ? <Spinner /> : <MinusCircleIcon />}
-                    </Button>
-                  </Tooltip>
+                      <Button
+                        className="text-amber-300"
+                        buttonType={'ghost'}
+                        buttonSize={'md'}
+                        onClick={onClickDeleteWatchlistBtn}
+                      >
+                        {isUpdating ? <Spinner /> : <StarIcon />}
+                      </Button>
+                    </Tooltip>
+                    <select
+                      value={watchlistStatus}
+                      onChange={(e) =>
+                        handleWatchlistStatusChange(e.target.value)
+                      }
+                      className="rounded border border-gray-600 bg-gray-800 px-2 py-1.5 text-sm text-white"
+                    >
+                      <option value="want_to_watch">Want to Watch</option>
+                      <option value="watching">Watching</option>
+                      <option value="watched">Watched</option>
+                    </select>
+                  </div>
                 )}
               </>
             )}
+          <Tooltip
+            content={intl.formatMessage(
+              isFavorited
+                ? messages.removefromfavorites
+                : messages.addtofavorites
+            )}
+          >
+            <Button
+              buttonType={'ghost'}
+              className="z-40 mr-2"
+              buttonSize={'md'}
+              onClick={isFavorited ? onClickRemoveFavoriteBtn : onClickFavoriteBtn}
+            >
+              {isFavorited ? (
+                <HeartIconSolid className="text-red-400" />
+              ) : (
+                <HeartIcon />
+              )}
+            </Button>
+          </Tooltip>
           <div className="z-20">
             <PlayButton links={mediaLinks} />
           </div>

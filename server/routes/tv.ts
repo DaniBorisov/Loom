@@ -3,6 +3,7 @@ import RottenTomatoes from '@server/api/rating/rottentomatoes';
 import TheMovieDb from '@server/api/themoviedb';
 import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import type { TmdbKeyword } from '@server/api/themoviedb/interfaces';
+import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
@@ -14,27 +15,56 @@ import { Router } from 'express';
 
 const tvRoutes = Router();
 
+function is404(err: unknown): boolean {
+  const cause = (err as { cause?: { response?: { status?: number } } }).cause;
+  return cause?.response?.status === 404;
+}
+
+async function resolveTmdbId(
+  tmdb: TheMovieDb,
+  requestedId: number
+): Promise<{ tmdbTv: Awaited<ReturnType<TheMovieDb['getTvShow']>>; tmdbId: number }> {
+  try {
+    const tmdbTv = await tmdb.getTvShow({ tvId: requestedId });
+    return { tmdbTv, tmdbId: requestedId };
+  } catch (e) {
+    if (is404(e)) {
+      const crosswalk = getAnimeCrosswalk();
+      const entry = crosswalk.getByAniListId(requestedId);
+      if (entry?.TheMovieDB_id) {
+        const tmdbTv = await tmdb.getTvShow({ tvId: entry.TheMovieDB_id });
+        logger.debug(
+          `Resolved AniList ID ${requestedId} to TMDB ID ${entry.TheMovieDB_id}`,
+          { label: 'API' }
+        );
+        return { tmdbTv, tmdbId: entry.TheMovieDB_id };
+      }
+    }
+    throw e;
+  }
+}
+
 tvRoutes.get('/:id', async (req, res, next) => {
   const tmdb = new TheMovieDb();
+  const requestedId = Number(req.params.id);
 
   try {
-    const tmdbTv = await tmdb.getTvShow({
-      tvId: Number(req.params.id),
-    });
+    const { tmdbTv, tmdbId } = await resolveTmdbId(tmdb, requestedId);
+
     const metadataProvider = tmdbTv.keywords.results.some(
       (keyword: TmdbKeyword) => keyword.id === ANIME_KEYWORD_ID
     )
       ? await getMetadataProvider('anime')
       : await getMetadataProvider('tv');
     const tv = await metadataProvider.getTvShow({
-      tvId: Number(req.params.id),
+      tvId: tmdbId,
       language: (req.query.language as string) ?? req.locale,
     });
     const media = await Media.getMedia(tv.id, MediaType.TV);
 
-    const onUserWatchlist = await getRepository(Watchlist).exist({
+    const watchlistEntry = await getRepository(Watchlist).findOne({
       where: {
-        tmdbId: Number(req.params.id),
+        tmdbId,
         mediaType: MediaType.TV,
         requestedBy: {
           id: req.user?.id,
@@ -42,12 +72,18 @@ tvRoutes.get('/:id', async (req, res, next) => {
       },
     });
 
-    const data = mapTvDetails(tv, media, onUserWatchlist);
+    const data = mapTvDetails(
+      tv,
+      media,
+      !!watchlistEntry,
+      watchlistEntry?.id,
+      watchlistEntry?.status
+    );
 
     // TMDB issue where it doesnt fallback to English when no overview is available in requested locale.
     if (!data.overview) {
       const tvEnglish = await metadataProvider.getTvShow({
-        tvId: Number(req.params.id),
+        tvId: tmdbId,
       });
       data.overview = tvEnglish.overview;
     }
@@ -67,11 +103,12 @@ tvRoutes.get('/:id', async (req, res, next) => {
 });
 
 tvRoutes.get('/:id/season/:seasonNumber', async (req, res, next) => {
+  const tmdb = new TheMovieDb();
+  const requestedId = Number(req.params.id);
+
   try {
-    const tmdb = new TheMovieDb();
-    const tmdbTv = await tmdb.getTvShow({
-      tvId: Number(req.params.id),
-    });
+    const { tmdbTv, tmdbId } = await resolveTmdbId(tmdb, requestedId);
+
     const metadataProvider = tmdbTv.keywords.results.some(
       (keyword: TmdbKeyword) => keyword.id === ANIME_KEYWORD_ID
     )
@@ -79,7 +116,7 @@ tvRoutes.get('/:id/season/:seasonNumber', async (req, res, next) => {
       : await getMetadataProvider('tv');
 
     const season = await metadataProvider.getTvSeason({
-      tvId: Number(req.params.id),
+      tvId: tmdbId,
       seasonNumber: Number(req.params.seasonNumber),
       language: (req.query.language as string) ?? req.locale,
     });
@@ -103,8 +140,9 @@ tvRoutes.get('/:id/recommendations', async (req, res, next) => {
   const tmdb = new TheMovieDb();
 
   try {
+    const { tmdbId } = await resolveTmdbId(tmdb, Number(req.params.id));
     const results = await tmdb.getTvRecommendations({
-      tvId: Number(req.params.id),
+      tvId: tmdbId,
       page: Number(req.query.page),
       language: (req.query.language as string) ?? req.locale,
     });
@@ -147,8 +185,9 @@ tvRoutes.get('/:id/similar', async (req, res, next) => {
   const tmdb = new TheMovieDb();
 
   try {
+    const { tmdbId } = await resolveTmdbId(tmdb, Number(req.params.id));
     const results = await tmdb.getTvSimilar({
-      tvId: Number(req.params.id),
+      tvId: tmdbId,
       page: Number(req.query.page),
       language: (req.query.language as string) ?? req.locale,
     });
@@ -192,8 +231,9 @@ tvRoutes.get('/:id/ratings', async (req, res, next) => {
   const rtapi = new RottenTomatoes();
 
   try {
+    const { tmdbId } = await resolveTmdbId(tmdb, Number(req.params.id));
     const tv = await tmdb.getTvShow({
-      tvId: Number(req.params.id),
+      tvId: tmdbId,
     });
 
     const rtratings = await rtapi.getTVRatings(

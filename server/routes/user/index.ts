@@ -244,23 +244,23 @@ router.post<
         const transactionalRepo =
           transactionalEntityManager.getRepository(UserPushSubscription);
 
-        // Check for existing subscription by auth or endpoint within transaction
+        // Check for existing subscription by endpoint (global unique)
         const existingSubscription = await transactionalRepo.findOne({
           relations: { user: true },
-          where: [
-            { auth: req.body.auth, user: { id: req.user?.id } },
-            { endpoint: req.body.endpoint, user: { id: req.user?.id } },
-          ],
+          where: { endpoint: req.body.endpoint },
         });
 
         if (existingSubscription) {
-          // If endpoint matches but auth is different, update with new keys (iOS refresh case)
-          if (
-            existingSubscription.endpoint === req.body.endpoint &&
-            existingSubscription.auth !== req.body.auth
-          ) {
-            existingSubscription.auth = req.body.auth;
-            existingSubscription.p256dh = req.body.p256dh;
+          // Update with new keys if they changed (iOS refresh case)
+          const keysChanged =
+            existingSubscription.keys?.p256dh !== req.body.p256dh ||
+            existingSubscription.keys?.auth !== req.body.auth;
+
+          if (keysChanged) {
+            existingSubscription.keys = {
+              p256dh: req.body.p256dh,
+              auth: req.body.auth,
+            };
             existingSubscription.userAgent = req.body.userAgent;
 
             await transactionalRepo.save(existingSubscription);
@@ -304,9 +304,8 @@ router.post<
         }
 
         const userPushSubscription = new UserPushSubscription({
-          auth: req.body.auth,
           endpoint: req.body.endpoint,
-          p256dh: req.body.p256dh,
+          keys: { p256dh: req.body.p256dh, auth: req.body.auth },
           userAgent: req.body.userAgent,
           user: req.user,
         });

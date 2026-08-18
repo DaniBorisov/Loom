@@ -1,18 +1,40 @@
 import Header from '@app/components/Common/Header';
-import ListView from '@app/components/Common/ListView';
 import PageTitle from '@app/components/Common/PageTitle';
-import useDiscover from '@app/hooks/useDiscover';
+import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import { useUser } from '@app/hooks/useUser';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import type { WatchlistItem } from '@server/interfaces/api/discoverInterfaces';
+import type { WatchlistStatus } from '@server/entity/Watchlist';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useState } from 'react';
 import { useIntl } from 'react-intl';
+import useSWR from 'swr';
+
+interface WatchlistEntry extends WatchlistItem {
+  status: WatchlistStatus;
+}
+
+interface WatchlistPageData {
+  page: number;
+  totalPages: number;
+  totalResults: number;
+  results: WatchlistEntry[];
+}
+
+type TabKey = 'want_to_watch' | 'watching' | 'watched';
+
+const tabs: { key: TabKey; label: string }[] = [
+  { key: 'want_to_watch', label: 'Want to Watch' },
+  { key: 'watching', label: 'Watching' },
+  { key: 'watched', label: 'Watched' },
+];
 
 const messages = defineMessages('components.Discover.DiscoverWatchlist', {
   discoverwatchlist: 'Your Watchlist',
   watchlist: 'Plex Watchlist',
+  emptyTab: 'Nothing here yet. Browse media to add items to your watchlist.',
 });
 
 const DiscoverWatchlist = () => {
@@ -21,26 +43,15 @@ const DiscoverWatchlist = () => {
   const { user } = useUser({
     id: Number(router.query.userId),
   });
-  const { user: currentUser } = useUser();
 
-  const {
-    isLoadingInitialData,
-    isEmpty,
-    isLoadingMore,
-    isReachingEnd,
-    titles,
-    fetchMore,
-    error,
-    mutate,
-  } = useDiscover<WatchlistItem>(
-    `/api/v1/${
-      router.pathname.startsWith('/profile')
-        ? `user/${currentUser?.id}`
-        : router.query.userId
-          ? `user/${router.query.userId}`
-          : 'discover'
-    }/watchlist`
-  );
+  const [activeTab, setActiveTab] = useState<TabKey>('want_to_watch');
+
+  const buildUrl = () => {
+    return `/api/v1/watchlist?status=${activeTab}`;
+  };
+
+  const { data: watchlistData, error } =
+    useSWR<WatchlistPageData>(buildUrl());
 
   if (error) {
     return <ErrorPage statusCode={500} />;
@@ -49,6 +60,8 @@ const DiscoverWatchlist = () => {
   const title = intl.formatMessage(
     router.query.userId ? messages.watchlist : messages.discoverwatchlist
   );
+
+  const items = watchlistData?.results ?? [];
 
   return (
     <>
@@ -70,16 +83,50 @@ const DiscoverWatchlist = () => {
           {title}
         </Header>
       </div>
-      <ListView
-        plexItems={titles}
-        isEmpty={isEmpty}
-        isLoading={
-          isLoadingInitialData || (isLoadingMore && (titles?.length ?? 0) > 0)
-        }
-        isReachingEnd={isReachingEnd}
-        onScrollBottom={fetchMore}
-        mutateParent={mutate}
-      />
+
+      {/* Status Tabs */}
+      <div className="mb-6 flex gap-1 rounded-lg bg-gray-800 p-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab.key
+                ? 'bg-indigo-600 text-white'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Items Grid */}
+      {items.length === 0 && !watchlistData ? (
+        <div className="mt-32 flex flex-col items-center justify-center text-gray-400">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+        </div>
+      ) : items.length === 0 ? (
+        <div className="mt-32 flex flex-col items-center justify-center text-center">
+          <p className="text-lg text-gray-400">
+            {intl.formatMessage(messages.emptyTab)}
+          </p>
+        </div>
+      ) : (
+        <ul className="cards-vertical">
+          {items.map((item) => (
+            <li key={item.id}>
+              <TmdbTitleCard
+                id={item.tmdbId}
+                tmdbId={item.tmdbId}
+                type={item.mediaType}
+                isAddedToWatchlist
+                canExpand
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 };

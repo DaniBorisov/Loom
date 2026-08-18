@@ -10,7 +10,7 @@ import {
 import { User } from './User';
 
 @Entity()
-@Unique(['endpoint', 'user'])
+@Unique('UQ_pushsubscription_endpoint', ['endpoint'])
 export class UserPushSubscription {
   @PrimaryGeneratedColumn()
   public id: number;
@@ -25,11 +25,8 @@ export class UserPushSubscription {
   @Column()
   public endpoint: string;
 
-  @Column()
-  public p256dh: string;
-
-  @Column()
-  public auth: string;
+  @Column({ type: 'simple-json' })
+  public keys: { p256dh: string; auth: string };
 
   @Column({ nullable: true })
   public userAgent: string;

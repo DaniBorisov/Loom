@@ -48,6 +48,8 @@ export class User {
     'jellyfinDeviceId',
     'jellyfinAuthToken',
     'plexToken',
+    'malAccessToken',
+    'malRefreshToken',
     'settings',
   ];
 
@@ -100,6 +102,21 @@ export class User {
 
   @Column({ type: 'varchar', nullable: true, select: false })
   public plexToken?: string | null;
+
+  @Column({ type: 'varchar', nullable: true, select: true })
+  public malUserId?: string | null;
+
+  @Column({ type: 'varchar', nullable: true, select: true })
+  public malUsername?: string | null;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  public malAccessToken?: string | null;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  public malRefreshToken?: string | null;
+
+  @DbAwareColumn({ type: 'datetime', nullable: true })
+  public malTokenExpiresAt?: Date | null;
 
   @Column({ type: 'integer', default: 0 })
   public permissions = 0;

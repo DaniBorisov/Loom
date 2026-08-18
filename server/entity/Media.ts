@@ -306,7 +306,7 @@ class Media {
       }
     }
 
-    if (this.mediaType === MediaType.TV) {
+    if (this.mediaType === MediaType.TV || this.mediaType === MediaType.ANIME) {
       if (this.serviceId !== null && this.externalServiceSlug !== null) {
         const settings = getSettings();
         const server = settings.sonarr.find(
@@ -366,7 +366,7 @@ class Media {
       }
     }
 
-    if (this.mediaType === MediaType.TV) {
+    if (this.mediaType === MediaType.TV || this.mediaType === MediaType.ANIME) {
       if (
         this.externalServiceId !== undefined &&
         this.externalServiceId !== null &&

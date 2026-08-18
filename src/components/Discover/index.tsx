@@ -283,6 +283,15 @@ const Discover = () => {
           case DiscoverSliderType.NETWORKS:
             sliderComponent = <NetworkSlider />;
             break;
+          case DiscoverSliderType.TRENDING_ANIME:
+            sliderComponent = (
+              <MediaSlider
+                sliderKey="trending-anime"
+                title={intl.formatMessage(sliderTitles.trendinganime)}
+                url="/api/v1/discover/anime/trending"
+              />
+            );
+            break;
           case DiscoverSliderType.TMDB_MOVIE_KEYWORD:
             sliderComponent = (
               <MediaSlider

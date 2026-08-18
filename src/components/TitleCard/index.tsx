@@ -18,9 +18,11 @@ import {
   ArrowDownTrayIcon,
   EyeIcon,
   EyeSlashIcon,
+  HeartIcon,
   MinusCircleIcon,
   StarIcon,
 } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { MediaStatus } from '@server/constants/media';
 import type { Watchlist } from '@server/entity/Watchlist';
 import type { MediaType } from '@server/models/Search';
@@ -43,6 +45,7 @@ interface TitleCardProps {
   inProgress?: boolean;
   isAddedToWatchlist?: number | boolean;
   mutateParent?: () => void;
+  source?: 'tmdb' | 'anilist';
 }
 
 const messages = defineMessages('components.TitleCard', {
@@ -53,6 +56,13 @@ const messages = defineMessages('components.TitleCard', {
     '<strong>{title}</strong> Removed from watchlist  successfully!',
   watchlistCancel: 'watchlist for <strong>{title}</strong> canceled.',
   watchlistError: 'Something went wrong. Please try again.',
+  addToFavorites: 'Add to favorites',
+  removeFromFavorites: 'Remove from favorites',
+  favoriteSuccess:
+    '<strong>{title}</strong> added to favorites!',
+  favoriteRemoved:
+    '<strong>{title}</strong> removed from favorites.',
+  favoriteError: 'Failed to update favorites.',
 });
 
 const TitleCard = ({
@@ -67,6 +77,7 @@ const TitleCard = ({
   inProgress = false,
   canExpand = false,
   mutateParent,
+  source = 'tmdb',
 }: TitleCardProps) => {
   const isTouch = useIsTouch();
   const intl = useIntl();
@@ -80,6 +91,8 @@ const TitleCard = ({
     useState<boolean>(!isAddedToWatchlist);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<number | null>(null);
 
   // Just to get the year from the date
   if (year) {
@@ -89,6 +102,73 @@ const TitleCard = ({
   useEffect(() => {
     setCurrentStatus(status);
   }, [status]);
+
+  useEffect(() => {
+    if (!id) return;
+    const checkFavorite = async () => {
+      try {
+        const res = await axios.get(
+          `/api/v1/favorites/check?mediaId=${id}&source=${source}`
+        );
+        setIsFavorited(res.data.isFavorited);
+        if (res.data.favoriteId) {
+          setFavoriteId(res.data.favoriteId);
+        }
+      } catch {
+        // Ignore - default to not favorited
+      }
+    };
+    checkFavorite();
+  }, [id, source]);
+
+  const onClickFavoriteBtn = async (): Promise<void> => {
+    try {
+      const res = await axios.post('/api/v1/favorites', {
+        mediaId: id,
+        mediaType,
+        source,
+      });
+      setIsFavorited(true);
+      setFavoriteId(res.data.id);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteSuccess, {
+            title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const onClickRemoveFavoriteBtn = async (): Promise<void> => {
+    if (!favoriteId) return;
+    try {
+      await axios.delete(`/api/v1/favorites/${favoriteId}`);
+      setIsFavorited(false);
+      setFavoriteId(null);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteRemoved, {
+            title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'info', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
 
   const requestComplete = useCallback((newStatus: MediaStatus) => {
     setCurrentStatus(newStatus);
@@ -379,27 +459,42 @@ const TitleCard = ({
             alt=""
             src={
               image
-                ? `https://image.tmdb.org/t/p/w300_and_h450_face${image}`
+                ? image.startsWith('http')
+                  ? image
+                  : `https://image.tmdb.org/t/p/w300_and_h450_face${image}`
                 : `/images/seerr_poster_not_found_logo_top.png`
             }
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             fill
           />
           <div className="absolute left-0 right-0 flex items-center justify-between p-2">
-            <div
-              className={`pointer-events-none z-40 self-start rounded-full border shadow-md ${
-                mediaType === 'movie' || mediaType === 'collection'
-                  ? 'border-blue-500 bg-blue-600/80'
-                  : 'border-purple-600 bg-purple-600/80'
-              }`}
-            >
-              <div className="flex h-4 items-center px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-white sm:h-5">
-                {mediaType === 'movie'
-                  ? intl.formatMessage(globalMessages.movie)
-                  : mediaType === 'collection'
-                    ? intl.formatMessage(globalMessages.collection)
-                    : intl.formatMessage(globalMessages.tvshow)}
+            <div className="flex items-center gap-1">
+              <div
+                className={`pointer-events-none z-40 self-start rounded-full border shadow-md ${
+                  mediaType === 'movie' || mediaType === 'collection'
+                    ? 'border-blue-500 bg-blue-600/80'
+                    : mediaType === 'anime'
+                      ? 'border-pink-600 bg-pink-600/80'
+                      : 'border-purple-600 bg-purple-600/80'
+                }`}
+              >
+                <div className="flex h-4 items-center px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-white sm:h-5">
+                  {mediaType === 'movie'
+                    ? intl.formatMessage(globalMessages.movie)
+                    : mediaType === 'collection'
+                      ? intl.formatMessage(globalMessages.collection)
+                      : mediaType === 'anime'
+                        ? 'Anime'
+                        : intl.formatMessage(globalMessages.tvshow)}
+                </div>
               </div>
+              {source === 'anilist' && mediaType !== 'anime' && (
+                <div className="pointer-events-none z-40 self-start rounded-full border border-pink-600 bg-pink-600/80 shadow-md">
+                  <div className="flex h-4 items-center px-1.5 py-2 text-center text-[10px] font-medium tracking-wider text-white sm:h-5">
+                    AniList
+                  </div>
+                </div>
+              )}
             </div>
             {showDetail && currentStatus !== MediaStatus.BLOCKLISTED && (
               <div className="flex flex-col gap-1">
@@ -422,6 +517,24 @@ const TitleCard = ({
                       <MinusCircleIcon className={'h-3'} />
                     </Button>
                   ))}
+                {isFavorited ? (
+                  <Button
+                    className="z-40"
+                    buttonSize={'sm'}
+                    onClick={onClickRemoveFavoriteBtn}
+                  >
+                    <HeartIconSolid className={'h-3 text-red-400'} />
+                  </Button>
+                ) : (
+                  <Button
+                    buttonType={'ghost'}
+                    className="z-40"
+                    buttonSize={'sm'}
+                    onClick={onClickFavoriteBtn}
+                  >
+                    <HeartIcon className={'h-3 text-gray-400'} />
+                  </Button>
+                )}
                 {showHideButton &&
                   currentStatus !== MediaStatus.PROCESSING &&
                   currentStatus !== MediaStatus.AVAILABLE &&

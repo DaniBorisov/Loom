@@ -8,7 +8,7 @@ import type { NonFunctionProperties } from '@server/interfaces/api/common';
 
 interface RequestModalProps {
   show: boolean;
-  type: 'movie' | 'tv' | 'collection';
+  type: 'movie' | 'tv' | 'anime' | 'collection';
   tmdbId: number;
   is4k?: boolean;
   editRequest?: NonFunctionProperties<MediaRequest>;
