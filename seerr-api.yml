@@ -5275,6 +5275,43 @@ paths:
         '404':
           description: Favorite not found
   /watchlist:
+    get:
+      summary: List authenticated user's watchlist
+      description: Returns the authenticated user's watchlist, optionally filtered by status.
+      tags:
+        - watchlist
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+            default: 1
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum:
+              - want_to_watch
+              - watching
+              - watched
+      responses:
+        '200':
+          description: Watchlist data returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                  totalPages:
+                    type: number
+                  totalResults:
+                    type: number
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Watchlist'
     post:
       summary: Add media to watchlist
       tags:
@@ -5292,6 +5329,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Watchlist'
+  /watchlist/{id}:
+    patch:
+      summary: Update watchlist item status
+      description: Changes the status of a watchlist item. Free transitions between any statuses.
+      tags:
+        - watchlist
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - want_to_watch
+                    - watching
+                    - watched
+      responses:
+        '200':
+          description: Updated watchlist item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Watchlist'
+        '403':
+          description: Not authorized to update this item
+        '404':
+          description: Watchlist item not found
   /watchlist/{tmdbId}:
     delete:
       summary: Delete watchlist item
@@ -5314,6 +5389,7 @@ paths:
             enum:
               - movie
               - tv
+              - anime
       responses:
         '204':
           description: Succesfully removed watchlist item

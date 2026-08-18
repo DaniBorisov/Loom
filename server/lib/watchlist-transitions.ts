@@ -1,23 +1,10 @@
 import { WatchlistStatus } from '@server/entity/Watchlist';
 
 /**
- * Allowed transitions for WatchlistStatus.
- *
- * Forward: want_to_watch → watching → watched
- * Skip-ahead: want_to_watch → watched (e.g. Jellyfin sync marks as watched)
- * Backward: watched → want_to_watch, watching → want_to_watch (user un-marks)
+ * All transitions are allowed between any valid statuses.
+ * Users can freely move items between want_to_watch, watching, and watched.
  */
-const ALLOWED_TRANSITIONS: Record<WatchlistStatus, WatchlistStatus[]> = {
-  [WatchlistStatus.WANT_TO_WATCH]: [
-    WatchlistStatus.WATCHING,
-    WatchlistStatus.WATCHED,
-  ],
-  [WatchlistStatus.WATCHING]: [
-    WatchlistStatus.WATCHED,
-    WatchlistStatus.WANT_TO_WATCH,
-  ],
-  [WatchlistStatus.WATCHED]: [WatchlistStatus.WANT_TO_WATCH],
-};
+const ALL_STATUSES = Object.values(WatchlistStatus);
 
 export class InvalidTransitionError extends Error {
   constructor(
@@ -31,12 +18,13 @@ export class InvalidTransitionError extends Error {
 
 /**
  * Returns true if `to` is a valid transition from `from`.
+ * All status-to-status transitions are allowed.
  */
 export function isValidTransition(
   from: WatchlistStatus,
   to: WatchlistStatus
 ): boolean {
-  return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
+  return ALL_STATUSES.includes(from) && ALL_STATUSES.includes(to);
 }
 
 /**

@@ -109,17 +109,21 @@ describe('Watchlist status transitions', () => {
     );
   });
 
-  it('should reject watched → watching', () => {
+  it('should allow watched → watching (free transition)', () => {
     assert.ok(
-      !isValidTransition(WatchlistStatus.WATCHED, WatchlistStatus.WATCHING)
+      isValidTransition(WatchlistStatus.WATCHED, WatchlistStatus.WATCHING)
     );
   });
 
-  it('should throw InvalidTransitionError for invalid transitions', () => {
-    assert.throws(
-      () => transitionStatus(WatchlistStatus.WATCHED, WatchlistStatus.WATCHING),
-      InvalidTransitionError
-    );
+  it('should allow any-to-any transition', () => {
+    for (const from of Object.values(WatchlistStatus)) {
+      for (const to of Object.values(WatchlistStatus)) {
+        assert.ok(
+          isValidTransition(from, to),
+          `Expected ${from} → ${to} to be valid`
+        );
+      }
+    }
   });
 
   it('should return the target status on valid transition', () => {
