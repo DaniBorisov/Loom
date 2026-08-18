@@ -106,6 +106,7 @@ const messages = defineMessages('components.MovieDetails', {
   watchlistDeleted:
     '<strong>{title}</strong> Removed from watchlist successfully!',
   watchlistError: 'Something went wrong. Please try again.',
+  watchlistStatusChanged: 'Watchlist status updated.',
   removefromwatchlist: 'Remove From Watchlist',
   addtowatchlist: 'Add To Watchlist',
   addtofavorites: 'Add To Favorites',
@@ -132,6 +133,12 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [toggleWatchlist, setToggleWatchlist] = useState<boolean>(
     !movie?.onUserWatchlist
+  );
+  const [watchlistEntryId, setWatchlistEntryId] = useState<number | null>(
+    movie?.watchlistId ?? null
+  );
+  const [watchlistStatus, setWatchlistStatus] = useState<string>(
+    movie?.watchlistStatus ?? 'want_to_watch'
   );
   const [isBlocklistUpdating, setIsBlocklistUpdating] =
     useState<boolean>(false);
@@ -176,6 +183,14 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   const { data: ratingData } = useSWR<RatingResponse>(
     `/api/v1/movie/${router.query.movieId}/ratingscombined`
   );
+
+  useEffect(() => {
+    if (data) {
+      setToggleWatchlist(!data.onUserWatchlist);
+      setWatchlistEntryId(data.watchlistId ?? null);
+      setWatchlistStatus(data.watchlistStatus ?? 'want_to_watch');
+    }
+  }, [data?.onUserWatchlist, data?.watchlistId, data?.watchlistStatus]);
 
   const sortedCrew = useMemo(
     () => sortCrewPriority(data?.credits.crew ?? []),
@@ -410,6 +425,28 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     } finally {
       setIsUpdating(false);
       setToggleWatchlist((prevState) => !prevState);
+    }
+  };
+
+  const handleWatchlistStatusChange = async (
+    newStatus: string
+  ): Promise<void> => {
+    if (!watchlistEntryId) return;
+
+    try {
+      await axios.patch(`/api/v1/watchlist/${watchlistEntryId}`, {
+        status: newStatus,
+      });
+      setWatchlistStatus(newStatus);
+      addToast(intl.formatMessage(messages.watchlistStatusChanged), {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    } catch {
+      addToast(intl.formatMessage(messages.watchlistError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
     }
   };
 
@@ -682,17 +719,31 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                     </Button>
                   </Tooltip>
                 ) : (
-                  <Tooltip
-                    content={intl.formatMessage(messages.removefromwatchlist)}
-                  >
-                    <Button
-                      className="z-40 mr-2"
-                      buttonSize={'md'}
-                      onClick={onClickDeleteWatchlistBtn}
+                  <div className="z-40 mr-2 flex items-center gap-1">
+                    <Tooltip
+                      content={intl.formatMessage(messages.removefromwatchlist)}
                     >
-                      {isUpdating ? <Spinner /> : <MinusCircleIcon />}
-                    </Button>
-                  </Tooltip>
+                      <Button
+                        className="text-amber-300"
+                        buttonType={'ghost'}
+                        buttonSize={'md'}
+                        onClick={onClickDeleteWatchlistBtn}
+                      >
+                        {isUpdating ? <Spinner /> : <StarIcon />}
+                      </Button>
+                    </Tooltip>
+                    <select
+                      value={watchlistStatus}
+                      onChange={(e) =>
+                        handleWatchlistStatusChange(e.target.value)
+                      }
+                      className="rounded border border-gray-600 bg-gray-800 px-2 py-1.5 text-sm text-white"
+                    >
+                      <option value="want_to_watch">Want to Watch</option>
+                      <option value="watching">Watching</option>
+                      <option value="watched">Watched</option>
+                    </select>
+                  </div>
                 )}
               </>
             )}

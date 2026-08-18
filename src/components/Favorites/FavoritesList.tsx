@@ -7,7 +7,6 @@ import type {
   FavoriteMediaType,
   FavoriteSource,
 } from '@server/entity/Favorite';
-import axios from 'axios';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useIntl } from 'react-intl';
@@ -34,28 +33,14 @@ const messages = defineMessages('components.Favorites.FavoritesList', {
   title: 'Your Favorites',
   profileTitle: 'Favorites',
   empty: 'No favorites yet. Search or browse to find something you love.',
-  removed: 'Removed from favorites.',
-  removeError: 'Failed to remove favorite.',
 });
 
 const FavoritesList = () => {
   const intl = useIntl();
   const router = useRouter();
 
-  const {
-    data: favoritesData,
-    error,
-    mutate,
-  } = useSWR<FavoritesPageData>('/api/v1/favorites');
-
-  const handleRemove = async (favoriteId: number) => {
-    try {
-      await axios.delete(`/api/v1/favorites/${favoriteId}`);
-      mutate();
-    } catch {
-      // Remove failed silently
-    }
-  };
+  const { data: favoritesData, error } =
+    useSWR<FavoritesPageData>('/api/v1/favorites');
 
   if (error) {
     return <ErrorPage statusCode={500} />;
@@ -108,23 +93,14 @@ const FavoritesList = () => {
       ) : (
         <ul className="cards-vertical">
           {items.map((item) => (
-            <li key={item.id} className="flex items-center gap-3">
-              <div className="flex-1">
-                <TmdbTitleCard
-                  id={item.mediaId}
-                  tmdbId={item.mediaId}
-                  type={item.mediaType as 'movie' | 'tv' | 'anime'}
-                  isAddedToWatchlist={false}
-                  canExpand
-                  mutateParent={() => mutate()}
-                />
-              </div>
-              <button
-                onClick={() => handleRemove(item.id)}
-                className="shrink-0 rounded-md bg-red-600/20 px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-600/40 hover:text-red-300"
-              >
-                Remove
-              </button>
+            <li key={item.id}>
+              <TmdbTitleCard
+                id={item.mediaId}
+                tmdbId={item.mediaId}
+                type={item.mediaType as 'movie' | 'tv' | 'anime'}
+                isAddedToWatchlist={false}
+                canExpand
+              />
             </li>
           ))}
         </ul>

@@ -112,6 +112,8 @@ export interface TvDetails {
   mediaInfo?: Media;
   watchProviders?: WatchProviders[];
   onUserWatchlist?: boolean;
+  watchlistId?: number;
+  watchlistStatus?: string;
 }
 
 const mapEpisodeResult = (episode: TmdbTvEpisodeResult): Episode => ({
@@ -163,7 +165,9 @@ export const mapNetwork = (network: TmdbNetwork): TvNetwork => ({
 export const mapTvDetails = (
   show: TmdbTvDetails,
   media?: Media,
-  userWatchlist?: boolean
+  userWatchlist?: boolean,
+  watchlistId?: number,
+  watchlistStatus?: string
 ): TvDetails => ({
   createdBy: show.created_by,
   episodeRunTime: show.episode_run_time,
@@ -226,4 +230,6 @@ export const mapTvDetails = (
   mediaInfo: media,
   watchProviders: mapWatchProviders(show['watch/providers']?.results ?? {}),
   onUserWatchlist: userWatchlist,
+  watchlistId,
+  watchlistStatus,
 });
