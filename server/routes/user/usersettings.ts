@@ -10,6 +10,7 @@ import type {
   UserSettingsGeneralResponse,
   UserSettingsNotificationsResponse,
 } from '@server/interfaces/api/userSettingsInterfaces';
+import { getImportProgress, runMalImport } from '@server/lib/mal-import';
 import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
@@ -27,6 +28,12 @@ import { Not } from 'typeorm';
 import { canMakePermissionsChange } from '.';
 
 const userSettingsRoutes = Router({ mergeParams: true });
+
+type MalImportProgress = {
+  running: boolean;
+  progress: number;
+  total: number;
+};
 
 userSettingsRoutes.get<{ id: string }, UserSettingsGeneralResponse>(
   '/main',
@@ -63,6 +70,8 @@ userSettingsRoutes.get<{ id: string }, UserSettingsGeneralResponse>(
         globalTvQuotaLimit: defaultQuotas.tv.quotaLimit,
         watchlistSyncMovies: user.settings?.watchlistSyncMovies,
         watchlistSyncTv: user.settings?.watchlistSyncTv,
+        malSyncEnabled: user.settings?.malSyncEnabled,
+        malUsername: user.malUsername,
       });
     } catch (e) {
       next({ status: 500, message: e.message });
@@ -128,6 +137,7 @@ userSettingsRoutes.post<
         originalLanguage: req.body.originalLanguage,
         watchlistSyncMovies: req.body.watchlistSyncMovies,
         watchlistSyncTv: req.body.watchlistSyncTv,
+        malSyncEnabled: req.body.malSyncEnabled,
       });
     } else {
       user.settings.locale = req.body.locale;
@@ -136,6 +146,7 @@ userSettingsRoutes.post<
       user.settings.originalLanguage = req.body.originalLanguage;
       user.settings.watchlistSyncMovies = req.body.watchlistSyncMovies;
       user.settings.watchlistSyncTv = req.body.watchlistSyncTv;
+      user.settings.malSyncEnabled = req.body.malSyncEnabled;
     }
 
     const savedUser = await userRepository.save(user);
@@ -148,6 +159,8 @@ userSettingsRoutes.post<
       originalLanguage: savedUser.settings?.originalLanguage,
       watchlistSyncMovies: savedUser.settings?.watchlistSyncMovies,
       watchlistSyncTv: savedUser.settings?.watchlistSyncTv,
+      malSyncEnabled: savedUser.settings?.malSyncEnabled,
+      malUsername: savedUser.malUsername,
       email: savedUser.email,
     });
   } catch (e) {
@@ -515,6 +528,46 @@ userSettingsRoutes.delete<{ id: string }>(
   }
 );
 
+userSettingsRoutes.delete<{ id: string }>(
+  '/linked-accounts/mal',
+  isOwnProfileOrAdmin(),
+  async (req, res) => {
+    const userRepository = getRepository(User);
+
+    try {
+      const user = await userRepository
+        .createQueryBuilder('user')
+        .addSelect('user.malAccessToken')
+        .addSelect('user.malRefreshToken')
+        .where({
+          id: Number(req.params.id),
+        })
+        .getOne();
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+
+      if (user.id === 1 && req.user?.id !== 1) {
+        return res.status(400).json({
+          message: 'Cannot unlink MAL account for the primary administrator.',
+        });
+      }
+
+      user.malUserId = null;
+      user.malUsername = null;
+      user.malAccessToken = null;
+      user.malRefreshToken = null;
+      user.malTokenExpiresAt = null;
+      await userRepository.save(user);
+
+      return res.status(204).send();
+    } catch (e) {
+      return res.status(500).json({ message: e.message });
+    }
+  }
+);
+
 userSettingsRoutes.post<{ secret: string }>(
   '/linked-accounts/jellyfin/quickconnect',
   isOwnProfile(),
@@ -775,6 +828,68 @@ userSettingsRoutes.post<
     } catch (e) {
       next({ status: 500, message: e.message });
     }
+  }
+);
+
+userSettingsRoutes.get<{ id: string }, MalImportProgress>(
+  '/mal/import/progress',
+  isOwnProfileOrAdmin(),
+  async (req, res) => {
+    const userId = Number(req.params.id);
+    return res.status(200).json(getImportProgress(userId));
+  }
+);
+
+userSettingsRoutes.post<{ id: string }>(
+  '/mal/import',
+  isOwnProfileOrAdmin(),
+  async (req, res, next) => {
+    const userRepository = getRepository(User);
+
+    try {
+      const user = await userRepository
+        .createQueryBuilder('user')
+        .addSelect('user.malAccessToken')
+        .addSelect('user.malRefreshToken')
+        .leftJoinAndSelect('user.settings', 'settings')
+        .where('user.id = :id', { id: Number(req.params.id) })
+        .getOne();
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+
+      if (!user.malAccessToken) {
+        return res.status(400).json({ message: 'MAL account not linked.' });
+      }
+
+      const progress = getImportProgress(user.id);
+      if (progress.running) {
+        return res.status(409).json({ message: 'Import already in progress.' });
+      }
+
+      // Run import in background — don't await
+      runMalImport(user).catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        logger.error(`MAL import failed for user ${user.id}`, {
+          label: 'MALImport',
+          error: msg,
+        });
+      });
+
+      return res.status(202).json({ message: 'Import started.' });
+    } catch (e) {
+      next({ status: 500, message: e.message });
+    }
+  }
+);
+
+userSettingsRoutes.get<{ id: string }>(
+  '/mal/import/status',
+  isOwnProfileOrAdmin(),
+  async (req, res) => {
+    const progress = getImportProgress(Number(req.params.id));
+    return res.status(200).json(progress);
   }
 );
 

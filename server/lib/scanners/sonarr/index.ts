@@ -19,6 +19,7 @@ import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import { uniqWith } from 'lodash';
+import { In } from 'typeorm';
 
 type SyncStatus = StatusBase & {
   currentServer: SonarrSettings;
@@ -240,7 +241,10 @@ class SonarrScanner
 
     if (this.didScanStandard) {
       const processingShows = await mediaRepository.find({
-        where: { mediaType: MediaType.TV, status: MediaStatus.PROCESSING },
+        where: {
+          mediaType: In([MediaType.TV, MediaType.ANIME]),
+          status: MediaStatus.PROCESSING,
+        },
         relations: { seasons: true, requests: true },
       });
 
@@ -269,7 +273,10 @@ class SonarrScanner
 
     if (this.didScan4k) {
       const processing4kShows = await mediaRepository.find({
-        where: { mediaType: MediaType.TV, status4k: MediaStatus.PROCESSING },
+        where: {
+          mediaType: In([MediaType.TV, MediaType.ANIME]),
+          status4k: MediaStatus.PROCESSING,
+        },
         relations: { seasons: true, requests: true },
       });
 

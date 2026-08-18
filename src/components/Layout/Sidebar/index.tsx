@@ -10,6 +10,7 @@ import {
   ExclamationTriangleIcon,
   EyeSlashIcon,
   FilmIcon,
+  LanguageIcon,
   SparklesIcon,
   TvIcon,
   UsersIcon,
@@ -24,6 +25,7 @@ import { useIntl } from 'react-intl';
 export const menuMessages = defineMessages('components.Layout.Sidebar', {
   dashboard: 'Discover',
   browsemovies: 'Movies',
+  browseanime: 'Anime',
   browsetv: 'Series',
   requests: 'Requests',
   blocklist: 'Blocklist',
@@ -64,6 +66,12 @@ const SidebarLinks: SidebarLinkProps[] = [
     messagesKey: 'browsemovies',
     svgIcon: <FilmIcon className="mr-3 h-6 w-6" />,
     activeRegExp: /^\/discover\/movies$/,
+  },
+  {
+    href: '/discover/anime',
+    messagesKey: 'browseanime',
+    svgIcon: <LanguageIcon className="mr-3 h-6 w-6" />,
+    activeRegExp: /^\/discover\/anime/,
   },
   {
     href: '/discover/tv',

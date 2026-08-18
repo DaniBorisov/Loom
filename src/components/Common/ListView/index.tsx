@@ -7,6 +7,7 @@ import globalMessages from '@app/i18n/globalMessages';
 import { MediaStatus } from '@server/constants/media';
 import type { WatchlistItem } from '@server/interfaces/api/discoverInterfaces';
 import type {
+  AnimeResult,
   CollectionResult,
   MovieResult,
   PersonResult,
@@ -15,7 +16,13 @@ import type {
 import { useIntl } from 'react-intl';
 
 type ListViewProps = {
-  items?: (TvResult | MovieResult | PersonResult | CollectionResult)[];
+  items?: (
+    | TvResult
+    | MovieResult
+    | PersonResult
+    | CollectionResult
+    | AnimeResult
+  )[];
   plexItems?: WatchlistItem[];
   isEmpty?: boolean;
   isLoading?: boolean;
@@ -118,6 +125,29 @@ const ListView = ({
                       (title.mediaInfo?.downloadStatus ?? []).length > 0
                     }
                     canExpand
+                  />
+                );
+                break;
+              case 'anime':
+                titleCard = (
+                  <TitleCard
+                    key={`anilist-${title.sourceId}`}
+                    id={title.sourceId ?? title.id}
+                    isAddedToWatchlist={
+                      title.mediaInfo?.watchlists?.length ?? 0
+                    }
+                    image={title.posterPath}
+                    status={title.mediaInfo?.status}
+                    summary={title.overview}
+                    title={title.title}
+                    userScore={title.voteAverage}
+                    year={title.firstAirDate}
+                    mediaType="anime"
+                    inProgress={
+                      (title.mediaInfo?.downloadStatus ?? []).length > 0
+                    }
+                    canExpand
+                    source="anilist"
                   />
                 );
                 break;

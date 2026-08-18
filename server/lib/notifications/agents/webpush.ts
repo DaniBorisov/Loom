@@ -239,10 +239,7 @@ class WebPushAgent
         await webpush.sendNotification(
           {
             endpoint: pushSub.endpoint,
-            keys: {
-              auth: pushSub.auth,
-              p256dh: pushSub.p256dh,
-            },
+            keys: pushSub.keys,
           },
           notificationPayload
         );

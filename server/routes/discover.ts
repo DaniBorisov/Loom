@@ -1,3 +1,4 @@
+import AniList from '@server/api/anilist';
 import PlexTvAPI from '@server/api/plextv';
 import type { SortOptions } from '@server/api/themoviedb';
 import TheMovieDb from '@server/api/themoviedb';
@@ -712,11 +713,46 @@ discoverRoutes.get('/trending', async (req, res, next) => {
   const tmdb = createTmdbWithRegionLanguage(req.user);
 
   try {
-    const mediaType = (req.query.mediaType as 'all' | 'movie' | 'tv') ?? 'all';
+    const mediaType =
+      (req.query.mediaType as 'all' | 'movie' | 'tv' | 'anime') ?? 'all';
     const timeWindow =
       (req.query.timeWindow as 'day' | 'week') === 'week' ? 'week' : 'day';
     const language = (req.query.language as string) ?? req.locale;
     const page = Number(req.query.page);
+
+    if (mediaType === 'anime') {
+      const anilist = new AniList();
+      const results = await anilist.getTrending({ page: page || 1 });
+      if (!results) {
+        return res.status(200).json({
+          page: 1,
+          totalPages: 1,
+          totalResults: 0,
+          results: [],
+        });
+      }
+      const mapped = results.results.map((r) => ({
+        id: r.id,
+        mediaType: 'anime' as const,
+        title: r.title,
+        overview: r.overview,
+        posterPath: r.posterPath,
+        backdropPath: r.backdropPath,
+        popularity: r.averageScore,
+        voteAverage: r.averageScore / 10,
+        voteCount: r.averageScore,
+        source: 'anilist' as const,
+        sourceId: r.id,
+        genres: r.genres,
+        firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
+      }));
+      return res.status(200).json({
+        page: results.pageInfo.currentPage,
+        totalPages: results.pageInfo.lastPage,
+        totalResults: results.pageInfo.total,
+        results: mapped,
+      });
+    }
 
     const trendingFetchers = {
       movie: async () => ({
@@ -981,5 +1017,109 @@ discoverRoutes.get<Record<string, unknown>, WatchlistResponse>(
     });
   }
 );
+
+// AniList Discover Endpoints
+
+discoverRoutes.get('/anime/trending', async (req, res, next) => {
+  try {
+    const anilist = new AniList();
+    const results = await anilist.getTrending({
+      page: Number(req.query.page) || 1,
+    });
+
+    if (!results) {
+      return res.status(200).json({
+        page: 1,
+        totalPages: 1,
+        totalResults: 0,
+        results: [],
+      });
+    }
+
+    const mapped = results.results.map((r) => ({
+      id: r.id,
+      mediaType: 'anime' as const,
+      title: r.title,
+      overview: r.overview,
+      posterPath: r.posterPath,
+      backdropPath: r.backdropPath,
+      popularity: r.averageScore,
+      voteAverage: r.averageScore / 10,
+      voteCount: r.averageScore,
+      source: 'anilist' as const,
+      sourceId: r.id,
+      genres: r.genres,
+      firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
+    }));
+
+    return res.status(200).json({
+      page: results.pageInfo.currentPage,
+      totalPages: results.pageInfo.lastPage,
+      totalResults: results.pageInfo.total,
+      results: mapped,
+    });
+  } catch (e) {
+    logger.debug('Something went wrong retrieving trending anime', {
+      label: 'API',
+      errorMessage: e.message,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to retrieve trending anime.',
+    });
+  }
+});
+
+discoverRoutes.get('/anime/seasonal', async (req, res, next) => {
+  try {
+    const anilist = new AniList();
+    const results = await anilist.getSeasonal({
+      season: (req.query.season as string) || 'FALL',
+      year: Number(req.query.year) || new Date().getFullYear(),
+      page: Number(req.query.page) || 1,
+    });
+
+    if (!results) {
+      return res.status(200).json({
+        page: 1,
+        totalPages: 1,
+        totalResults: 0,
+        results: [],
+      });
+    }
+
+    const mapped = results.results.map((r) => ({
+      id: r.id,
+      mediaType: 'anime' as const,
+      title: r.title,
+      overview: r.overview,
+      posterPath: r.posterPath,
+      backdropPath: r.backdropPath,
+      popularity: r.averageScore,
+      voteAverage: r.averageScore / 10,
+      voteCount: r.averageScore,
+      source: 'anilist' as const,
+      sourceId: r.id,
+      genres: r.genres,
+      firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
+    }));
+
+    return res.status(200).json({
+      page: results.pageInfo.currentPage,
+      totalPages: results.pageInfo.lastPage,
+      totalResults: results.pageInfo.total,
+      results: mapped,
+    });
+  } catch (e) {
+    logger.debug('Something went wrong retrieving seasonal anime', {
+      label: 'API',
+      errorMessage: e.message,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to retrieve seasonal anime.',
+    });
+  }
+});
 
 export default discoverRoutes;

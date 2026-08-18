@@ -27,7 +27,7 @@ const messages = defineMessages('components.PersonDetails', {
   ascharacter: 'as {character}',
 });
 
-type MediaType = 'all' | 'movie' | 'tv';
+type MediaType = 'all' | 'movie' | 'tv' | 'anime';
 
 const PersonDetails = () => {
   const intl = useIntl();
@@ -181,7 +181,7 @@ const PersonDetails = () => {
                 }
                 image={media.posterPath}
                 summary={media.overview}
-                mediaType={media.mediaType as 'movie' | 'tv'}
+                mediaType={media.mediaType as 'movie' | 'tv' | 'anime'}
                 status={media.mediaInfo?.status}
                 canExpand
               />
@@ -222,7 +222,7 @@ const PersonDetails = () => {
                 }
                 image={media.posterPath}
                 summary={media.overview}
-                mediaType={media.mediaType as 'movie' | 'tv'}
+                mediaType={media.mediaType as 'movie' | 'tv' | 'anime'}
                 status={media.mediaInfo?.status}
                 canExpand
               />

@@ -59,7 +59,11 @@ watchlistRoutes.delete('/:tmdbId', async (req, res, next) => {
   }
   try {
     const mediaType = req.query.mediaType;
-    if (mediaType !== MediaType.MOVIE && mediaType !== MediaType.TV) {
+    if (
+      mediaType !== MediaType.MOVIE &&
+      mediaType !== MediaType.TV &&
+      mediaType !== MediaType.ANIME
+    ) {
       return next({
         status: 400,
         message: 'Invalid mediaType query parameter.',

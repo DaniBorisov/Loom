@@ -144,7 +144,7 @@ export const CompanySelector = ({
 };
 
 type GenreSelectorProps = (BaseSelectorMultiProps | BaseSelectorSingleProps) & {
-  type: 'movie' | 'tv';
+  type: 'movie' | 'tv' | 'anime';
 };
 
 export const GenreSelector = ({
@@ -370,7 +370,7 @@ export const KeywordSelector = ({
 };
 
 type WatchProviderSelectorProps = {
-  type: 'movie' | 'tv';
+  type: 'movie' | 'tv' | 'anime';
   region?: string;
   activeProviders?: number[];
   onChange: (region: string, value: number[]) => void;

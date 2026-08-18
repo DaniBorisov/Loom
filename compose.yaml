@@ -1,10 +1,12 @@
 services:
-  seerr:
+  loom:
     build:
       context: .
       dockerfile: Dockerfile.local
     ports:
       - 5055:5055
+    environment:
+      MAL_CLIENT_ID: ${MAL_CLIENT_ID:-3e7349412de8a925e131bbe270789e24}
     volumes:
       - .:/app:rw,cached
       - /app/node_modules

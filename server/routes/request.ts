@@ -26,6 +26,7 @@ import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { isAuthenticated } from '@server/middleware/auth';
 import { Router } from 'express';
+import { In } from 'typeorm';
 
 const requestRoutes = Router();
 
@@ -169,6 +170,7 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
           });
           break;
         case 'tv':
+        case 'anime':
           query = query.andWhere('request.type = :type', {
             type: MediaType.TV,
           });
@@ -226,7 +228,8 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
               profileName,
             };
           }
-          case MediaType.TV: {
+          case MediaType.TV:
+          case MediaType.ANIME: {
             return {
               ...r,
               profileName: sonarrServers
@@ -252,7 +255,8 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
                 ),
               };
             }
-            case MediaType.TV: {
+            case MediaType.TV:
+            case MediaType.ANIME: {
               return {
                 ...r,
                 // check if the sonarr server for this request is configured
@@ -513,7 +517,10 @@ requestRoutes.put<{ requestId: string }>(
         request.requestedBy = requestUser as User;
 
         await requestRepository.save(request);
-      } else if (req.body.mediaType === MediaType.TV) {
+      } else if (
+        req.body.mediaType === MediaType.TV ||
+        req.body.mediaType === MediaType.ANIME
+      ) {
         const mediaRepository = getRepository(Media);
         request.serverId = req.body.serverId;
         request.profileId = req.body.profileId;
@@ -532,7 +539,10 @@ requestRoutes.put<{ requestId: string }>(
 
         // Get existing media so we can work with all the requests
         const media = await mediaRepository.findOneOrFail({
-          where: { tmdbId: request.media.tmdbId, mediaType: MediaType.TV },
+          where: {
+            tmdbId: request.media.tmdbId,
+            mediaType: In([MediaType.TV, MediaType.ANIME]),
+          },
           relations: { requests: true },
         });
 

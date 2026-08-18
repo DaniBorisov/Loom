@@ -55,7 +55,7 @@ export type RequestOverrides = {
 };
 
 interface AdvancedRequesterProps {
-  type: 'movie' | 'tv';
+  type: 'movie' | 'tv' | 'anime';
   is4k: boolean;
   isAnime?: boolean;
   defaultOverrides?: RequestOverrides;

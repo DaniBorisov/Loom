@@ -61,6 +61,37 @@ components:
         userId:
           type: number
           example: 1
+    Favorite:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          readOnly: true
+        userId:
+          type: number
+          example: 1
+        mediaId:
+          type: number
+          example: 1
+        mediaType:
+          type: string
+          enum:
+            - movie
+            - tv
+            - anime
+        source:
+          type: string
+          enum:
+            - tmdb
+            - anilist
+            - tvdb
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     Watchlist:
       type: object
       properties:
@@ -829,6 +860,43 @@ components:
             oneOf:
               - $ref: '#/components/schemas/MovieResult'
               - $ref: '#/components/schemas/TvResult'
+    AnimeResult:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 1234
+        mediaType:
+          type: string
+          example: 'anime'
+        title:
+          type: string
+          example: Anime Title
+        overview:
+          type: string
+        posterPath:
+          type: string
+        backdropPath:
+          type: string
+        popularity:
+          type: number
+        voteAverage:
+          type: number
+        voteCount:
+          type: number
+        source:
+          type: string
+          example: 'anilist'
+        sourceId:
+          type: number
+        genres:
+          type: array
+          items:
+            type: string
+        firstAirDate:
+          type: string
+        mediaInfo:
+          $ref: '#/components/schemas/MediaInfo'
     Genre:
       type: object
       properties:
@@ -4162,6 +4230,51 @@ paths:
           description: Quick Connect not authorized or access denied
         '500':
           description: Authentication failed
+  /auth/mal:
+    get:
+      summary: Initiate MyAnimeList OAuth2 login
+      description: Returns a URL for the user to authorize on MyAnimeList. Includes PKCE code challenge in query string. The client must store the code verifier locally for the callback step.
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Authorization URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: The MAL OAuth2 authorization URL
+        '400':
+          description: MAL_CLIENT_ID not configured
+  /auth/mal/callback:
+    get:
+      summary: MAL OAuth2 callback
+      description: Handles the MAL OAuth2 redirect. Exchanges the authorization code for tokens using PKCE, links the MAL account to the authenticated user, and redirects to the settings page.
+      tags:
+        - auth
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+          description: Authorization code from MAL
+        - in: query
+          name: state
+          required: false
+          schema:
+            type: string
+          description: OAuth state parameter
+      responses:
+        '302':
+          description: Redirects to settings page after successful link
+        '400':
+          description: Missing parameters or user not authenticated
+        '401':
+          description: Token exchange failed
   /auth/local:
     post:
       summary: Sign in using a local account
@@ -5042,6 +5155,125 @@ paths:
           description: Successfully removed collection from blocklist
         '500':
           description: Error removing collection from blocklist
+  /favorites:
+    get:
+      summary: Get user favorites
+      description: Returns the authenticated user's favorites, paginated.
+      tags:
+        - favorites
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+            default: 1
+      responses:
+        '200':
+          description: Favorites list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                  totalPages:
+                    type: number
+                  totalResults:
+                    type: number
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Favorite'
+    post:
+      summary: Add a favorite
+      tags:
+        - favorites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mediaId
+                - mediaType
+                - source
+              properties:
+                mediaId:
+                  type: number
+                mediaType:
+                  type: string
+                  enum:
+                    - movie
+                    - tv
+                    - anime
+                source:
+                  type: string
+                  enum:
+                    - tmdb
+                    - anilist
+                    - tvdb
+      responses:
+        '201':
+          description: Favorite created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+        '409':
+          description: Favorite already exists
+  /favorites/check:
+    get:
+      summary: Check if media is favorited
+      tags:
+        - favorites
+      parameters:
+        - in: query
+          name: mediaId
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: source
+          required: true
+          schema:
+            type: string
+            enum:
+              - tmdb
+              - anilist
+              - tvdb
+      responses:
+        '200':
+          description: Favorite check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isFavorited:
+                    type: boolean
+                  favoriteId:
+                    type: number
+                    nullable: true
+  /favorites/{id}:
+    delete:
+      summary: Remove a favorite
+      tags:
+        - favorites
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: number
+      responses:
+        '204':
+          description: Favorite removed
+        '403':
+          description: Not authorized to remove this favorite
+        '404':
+          description: Favorite not found
   /watchlist:
     post:
       summary: Add media to watchlist
@@ -5359,6 +5591,70 @@ paths:
           description: Account already linked
         '500':
           description: Server error
+  /user/{userId}/settings/linked-accounts/mal:
+    delete:
+      summary: Remove the linked MyAnimeList account for a user
+      description: Removes the linked MAL account and clears all MAL tokens. Requires `MANAGE_USERS` permission if editing other users.
+      tags:
+        - users
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: number
+      responses:
+        '204':
+          description: Unlinking account succeeded
+        '400':
+          description: Cannot unlink MAL for primary admin
+        '404':
+          description: User does not exist
+  /user/{userId}/settings/mal/import:
+    post:
+      summary: Start a MAL anime list import
+      description: Initiates a background import of the user's MAL anime list. Does not wait for completion. Use the progress endpoint to track status. Requires `MANAGE_USERS` if editing other users.
+      tags:
+        - users
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: number
+      responses:
+        '202':
+          description: Import started
+        '400':
+          description: MAL account not linked
+        '409':
+          description: Import already in progress
+  /user/{userId}/settings/mal/import/progress:
+    get:
+      summary: Get MAL import progress
+      description: Returns the current progress of a MAL anime list import for a specific user.
+      tags:
+        - users
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Import progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                  progress:
+                    type: number
+                  total:
+                    type: number
   /user/{userId}/settings/notifications:
     get:
       summary: Get notification settings for a user
@@ -6331,6 +6627,88 @@ paths:
                         - $ref: '#/components/schemas/MovieResult'
                         - $ref: '#/components/schemas/TvResult'
                         - $ref: '#/components/schemas/PersonResult'
+  /discover/anime/trending:
+    get:
+      summary: Trending anime
+      description: Returns a list of trending anime from AniList.
+      tags:
+        - search
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+            example: 1
+            default: 1
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    example: 1
+                  totalPages:
+                    type: number
+                    example: 20
+                  totalResults:
+                    type: number
+                    example: 200
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnimeResult'
+  /discover/anime/seasonal:
+    get:
+      summary: Seasonal anime
+      description: Returns a list of seasonal anime from AniList.
+      tags:
+        - search
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+            example: 1
+            default: 1
+        - in: query
+          name: season
+          schema:
+            type: string
+            enum:
+              - WINTER
+              - SPRING
+              - SUMMER
+              - FALL
+        - in: query
+          name: year
+          schema:
+            type: number
+            example: 2026
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    example: 1
+                  totalPages:
+                    type: number
+                    example: 20
+                  totalResults:
+                    type: number
+                    example: 200
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnimeResult'
   /discover/keyword/{keywordId}/movies:
     get:
       summary: Get movies from keyword

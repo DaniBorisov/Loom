@@ -50,7 +50,7 @@ const messages = defineMessages('components.Discover.FilterSlideover', {
 type FilterSlideoverProps = {
   show: boolean;
   onClose: () => void;
-  type: 'movie' | 'tv';
+  type: 'movie' | 'tv' | 'anime';
   currentFilters: FilterOptions;
 };
 

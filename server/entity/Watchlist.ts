@@ -17,6 +17,19 @@ import {
 } from 'typeorm';
 import type { ZodNumber, ZodOptional, ZodString } from 'zod';
 
+export enum WatchlistStatus {
+  WANT_TO_WATCH = 'want_to_watch',
+  WATCHING = 'watching',
+  WATCHED = 'watched',
+}
+
+export enum NotifyOn {
+  EPISODE_AIRING = 'episode_airing',
+  AVAILABLE_IN_LIBRARY = 'available_in_library',
+  BOTH = 'both',
+  NONE = 'none',
+}
+
 export class DuplicateWatchlistRequestError extends Error {}
 export class NotFoundError extends Error {
   constructor(message = 'Not found') {
@@ -66,6 +79,21 @@ export class Watchlist implements WatchlistItem {
     default: () => 'CURRENT_TIMESTAMP',
   })
   public updatedAt: Date;
+
+  @Column({ type: 'varchar', default: WatchlistStatus.WANT_TO_WATCH })
+  public status: WatchlistStatus;
+
+  @Column({ type: 'varchar', default: NotifyOn.BOTH })
+  public notifyOn: NotifyOn;
+
+  @Column({ type: 'varchar', nullable: true })
+  public externalSource?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  public externalId?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  public malOriginalStatus?: string | null;
 
   constructor(init?: Partial<Watchlist>) {
     Object.assign(this, init);

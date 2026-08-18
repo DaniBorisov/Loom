@@ -94,7 +94,8 @@ export class MediaRequest {
         }movie requests.`
       );
     } else if (
-      requestBody.mediaType === MediaType.TV &&
+      (requestBody.mediaType === MediaType.TV ||
+        requestBody.mediaType === MediaType.ANIME) &&
       !requestUser.hasPermission(
         requestBody.is4k
           ? [Permission.REQUEST_4K, Permission.REQUEST_4K_TV]
@@ -132,7 +133,8 @@ export class MediaRequest {
       ) {
         throw new QuotaRestrictedError('Movie Quota exceeded.');
       } else if (
-        requestBody.mediaType === MediaType.TV &&
+        (requestBody.mediaType === MediaType.TV ||
+          requestBody.mediaType === MediaType.ANIME) &&
         quotas.tv.restricted
       ) {
         throw new QuotaRestrictedError('Series Quota exceeded.');
@@ -271,7 +273,8 @@ export class MediaRequest {
         // is handled by default and override rules do not explicitly include
         // the anime keyword
         if (
-          requestBody.mediaType === MediaType.TV &&
+          (requestBody.mediaType === MediaType.TV ||
+            requestBody.mediaType === MediaType.ANIME) &&
           hasAnimeKeyword &&
           (!rule.keywords ||
             !rule.keywords.split(',').map(Number).includes(ANIME_KEYWORD_ID))
@@ -767,7 +770,12 @@ export class MediaRequest {
     const tmdb = new TheMovieDb();
 
     try {
-      const mediaType = entity.type === MediaType.MOVIE ? 'Movie' : 'Series';
+      const mediaType =
+        entity.type === MediaType.MOVIE
+          ? 'Movie'
+          : entity.type === MediaType.ANIME
+            ? 'Anime'
+            : 'Series';
       let event: string | undefined;
       let notifyAdmin = true;
       let notifySystem = true;
@@ -824,7 +832,10 @@ export class MediaRequest {
           }),
           image: `https://image.tmdb.org/t/p/w600_and_h900_bestv2${movie.poster_path}`,
         });
-      } else if (entity.type === MediaType.TV) {
+      } else if (
+        entity.type === MediaType.TV ||
+        entity.type === MediaType.ANIME
+      ) {
         const tv = await tmdb.getTvShow({ tvId: media.tmdbId });
         notificationManager.sendNotification(type, {
           media,

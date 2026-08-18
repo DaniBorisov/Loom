@@ -48,7 +48,7 @@ const classNames = (...classes: string[]) => {
 };
 
 interface CreateIssueModalProps {
-  mediaType: 'movie' | 'tv';
+  mediaType: 'movie' | 'tv' | 'anime';
   tmdbId?: number;
   onCancel?: () => void;
 }

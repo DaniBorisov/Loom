@@ -20,7 +20,7 @@ const messages = defineMessages('components.Discover', {
   timeWindowWeek: 'Weekly',
 });
 
-type MediaType = 'all' | 'movie' | 'tv';
+type MediaType = 'all' | 'movie' | 'tv' | 'anime';
 
 type TimeWindow = 'day' | 'week';
 

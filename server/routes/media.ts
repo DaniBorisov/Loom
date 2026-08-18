@@ -122,7 +122,10 @@ mediaRoutes.post<
       case 'available':
         media[is4k ? 'status4k' : 'status'] = MediaStatus.AVAILABLE;
 
-        if (media.mediaType === MediaType.TV) {
+        if (
+          media.mediaType === MediaType.TV ||
+          media.mediaType === MediaType.ANIME
+        ) {
           const expectedSeasons = req.body.seasons ?? [];
 
           for (const expectedSeason of expectedSeasons) {

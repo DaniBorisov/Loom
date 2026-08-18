@@ -1,51 +1,113 @@
+import AniList from '@server/api/anilist';
+import type { AniListSearchResult } from '@server/api/anilist/interfaces';
 import TheMovieDb from '@server/api/themoviedb';
 import type { TmdbSearchMultiResponse } from '@server/api/themoviedb/interfaces';
+import { MediaType } from '@server/constants/media';
 import Media from '@server/entity/Media';
 import { findSearchProvider } from '@server/lib/search';
 import logger from '@server/logger';
-import { mapSearchResults } from '@server/models/Search';
+import { mapAniListResult, mapSearchResults } from '@server/models/Search';
 import { Router } from 'express';
 
 const searchRoutes = Router();
 
 searchRoutes.get('/', async (req, res, next) => {
   const queryString = req.query.query as string;
+  const page = Number(req.query.page) || 1;
   const searchProvider = findSearchProvider(queryString.toLowerCase());
-  let results: TmdbSearchMultiResponse;
 
   try {
+    let tmdbResults: TmdbSearchMultiResponse | null = null;
+    let anilistResults: AniListSearchResult[] = [];
+
     if (searchProvider) {
+      // Specific ID search — TMDB only
       const [id] = queryString
         .toLowerCase()
         .match(searchProvider.pattern) as RegExpMatchArray;
-      results = await searchProvider.search({
+      tmdbResults = await searchProvider.search({
         id,
         language: (req.query.language as string) ?? req.locale,
         query: queryString,
       });
     } else {
+      // Parallel search: TMDB + AniList
       const tmdb = new TheMovieDb();
+      const anilist = new AniList();
+      const language = (req.query.language as string) ?? req.locale;
 
-      results = await tmdb.searchMulti({
-        query: queryString,
-        page: Number(req.query.page),
-        language: (req.query.language as string) ?? req.locale,
-      });
+      const [tmdbResponse, anilistResponse] = await Promise.allSettled([
+        tmdb.searchMulti({ query: queryString, page, language }),
+        anilist.search({ query: queryString, page, perPage: 10 }),
+      ]);
+
+      if (tmdbResponse.status === 'fulfilled') {
+        tmdbResults = tmdbResponse.value;
+      }
+
+      if (anilistResponse.status === 'fulfilled' && anilistResponse.value) {
+        anilistResults = anilistResponse.value.results;
+      }
     }
 
-    const media = await Media.getRelatedMedia(
-      req.user,
-      results.results.map((result) => ({
-        tmdbId: result.id,
-        mediaType: result.media_type,
-      }))
+    // Map TMDB results
+    const mappedTmdb = tmdbResults ? mapSearchResults(tmdbResults.results) : [];
+
+    // Map AniList results
+    const mappedAnilist = anilistResults.map((r) => mapAniListResult(r));
+
+    // Deduplicate: if an AniList result has a TMDB ID that appears in TMDB results, drop it
+    const tmdbIds = new Set(
+      mappedTmdb
+        .filter((r) => 'mediaType' in r && r.mediaType !== 'person')
+        .map((r) => r.id)
+    );
+    const dedupedAnilist = mappedAnilist.filter(
+      (r) => !tmdbIds.has(r.sourceId)
     );
 
+    // Merge
+    const allResults = [...mappedTmdb, ...dedupedAnilist];
+
+    // Fetch local media state for all results
+    const mediaItems = await Media.getRelatedMedia(
+      req.user,
+      allResults
+        .filter((r) => 'mediaType' in r && r.mediaType !== 'person')
+        .map((r) => ({
+          tmdbId: r.source === 'tmdb' ? r.id : (r.sourceId ?? r.id),
+          mediaType:
+            r.mediaType === 'anime'
+              ? MediaType.ANIME
+              : (r.mediaType as MediaType),
+        }))
+    );
+
+    // Attach mediaInfo
+    const resultsWithMedia = allResults.map((result) => {
+      if (result.mediaType === 'person' || result.mediaType === 'collection') {
+        return result;
+      }
+      const media = mediaItems.find(
+        (m) =>
+          m.tmdbId ===
+            (result.source === 'tmdb' ? result.id : result.sourceId) ||
+          m.tmdbId === result.id
+      );
+      return { ...result, mediaInfo: media };
+    });
+
+    // Calculate pagination
+    const tmdbTotalPages = tmdbResults?.total_pages ?? 1;
+    const tmdbTotalResults = tmdbResults?.total_results ?? 0;
+    const anilistTotal = anilistResults.length;
+    const totalResults = tmdbTotalResults + anilistTotal;
+
     return res.status(200).json({
-      page: results.page,
-      totalPages: results.total_pages,
-      totalResults: results.total_results,
-      results: mapSearchResults(results.results, media),
+      page,
+      totalPages: tmdbTotalPages,
+      totalResults,
+      results: resultsWithMedia,
     });
   } catch (e) {
     logger.debug('Something went wrong retrieving search results', {

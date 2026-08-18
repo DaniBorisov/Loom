@@ -67,7 +67,10 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
           event.mediaType === MediaType.MOVIE
         ) {
           shouldComplete = true;
-        } else if (event.mediaType === 'tv') {
+        } else if (
+          event.mediaType === 'tv' ||
+          event.mediaType === MediaType.ANIME
+        ) {
           const allSeasonResults = await Promise.all(
             request.seasons.map(async (requestSeason) => {
               const matchingSeason = event.seasons.find(
@@ -202,7 +205,8 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
     try {
       if (
         (event.entity.status !== event.databaseEntity?.status ||
-          (event.entity.mediaType === MediaType.TV &&
+          ((event.entity.mediaType === MediaType.TV ||
+            event.entity.mediaType === MediaType.ANIME) &&
             seasonStatusCheck(false))) &&
         validStatuses.includes(event.entity.status)
       ) {
@@ -227,7 +231,8 @@ export class MediaSubscriber implements EntitySubscriberInterface<Media> {
     try {
       if (
         (event.entity.status4k !== event.databaseEntity?.status4k ||
-          (event.entity.mediaType === MediaType.TV &&
+          ((event.entity.mediaType === MediaType.TV ||
+            event.entity.mediaType === MediaType.ANIME) &&
             seasonStatusCheck(true))) &&
         validStatuses.includes(event.entity.status4k)
       ) {

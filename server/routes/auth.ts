@@ -6,6 +6,12 @@ import { UserType } from '@server/constants/user';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { startJobs } from '@server/job/schedule';
+import {
+  exchangeCodeForTokens,
+  fetchMalUserInfo,
+  generatePkcePair,
+  getMalAuthUrl,
+} from '@server/lib/mal-auth';
 import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
@@ -1040,6 +1046,113 @@ authRoutes.post('/reset-password/:guid', async (req, res, next) => {
   });
 
   return res.status(200).json({ status: 'ok' });
+});
+
+// --- MAL OAuth2/PKCE Routes ---
+
+authRoutes.get('/mal', isAuthenticated(), async (req, res) => {
+  const clientId = process.env.MAL_CLIENT_ID;
+  if (!clientId) {
+    return res.status(500).json({ message: 'MAL client ID not configured.' });
+  }
+
+  const protocol = req.protocol || 'http';
+  const host = req.headers.host || 'localhost:5055';
+  const redirectUri = `${protocol}://${host}/api/v1/auth/mal/callback`;
+
+  const { codeVerifier, codeChallenge } = generatePkcePair();
+  const state = `loom_${Date.now()}`;
+
+  if (!req.session) {
+    return res.status(500).json({ message: 'Session not available.' });
+  }
+  (req.session as unknown as Record<string, unknown>).malCodeVerifier =
+    codeVerifier;
+  (req.session as unknown as Record<string, unknown>).malRedirectUri =
+    redirectUri;
+  (req.session as unknown as Record<string, unknown>).malState = state;
+
+  const authUrl = getMalAuthUrl(state, codeChallenge, clientId, redirectUri);
+  return res.status(200).json({ url: authUrl });
+});
+
+authRoutes.get('/mal/callback', async (req, res, next) => {
+  const { code, state } = req.query as { code?: string; state?: string };
+  const clientId = process.env.MAL_CLIENT_ID;
+
+  if (!code || !clientId) {
+    return next({ status: 400, message: 'Missing authorization code.' });
+  }
+
+  if (!req.session) {
+    return next({ status: 400, message: 'Session not available.' });
+  }
+
+  const codeVerifier = (req.session as unknown as Record<string, unknown>)
+    .malCodeVerifier as string;
+  const redirectUri = (req.session as unknown as Record<string, unknown>)
+    .malRedirectUri as string;
+  const savedState = (req.session as unknown as Record<string, unknown>)
+    .malState as string;
+
+  if (!codeVerifier || !redirectUri) {
+    return next({
+      status: 400,
+      message: 'Missing PKCE session data. Please try again.',
+    });
+  }
+
+  if (savedState && state !== savedState) {
+    return next({ status: 400, message: 'Invalid state parameter.' });
+  }
+
+  try {
+    const tokenResponse = await exchangeCodeForTokens(
+      code,
+      codeVerifier,
+      clientId,
+      redirectUri
+    );
+
+    const malUser = await fetchMalUserInfo(tokenResponse.access_token);
+    const userRepository = getRepository(User);
+    const user = await userRepository.findOne({
+      where: { id: req.session.userId },
+    });
+
+    if (!user) {
+      return next({ status: 404, message: 'User not found.' });
+    }
+
+    user.malUserId = String(malUser.id);
+    user.malUsername = malUser.name;
+    user.malAccessToken = tokenResponse.access_token;
+    user.malRefreshToken = tokenResponse.refresh_token;
+    user.malTokenExpiresAt = new Date(
+      Date.now() + tokenResponse.expires_in * 1000
+    );
+    await userRepository.save(user);
+
+    // Clean up session
+    delete (req.session as unknown as Record<string, unknown>).malCodeVerifier;
+    delete (req.session as unknown as Record<string, unknown>).malRedirectUri;
+    delete (req.session as unknown as Record<string, unknown>).malState;
+
+    const redirectProtocol = req.protocol || 'http';
+    const redirectHost = req.headers.host || 'localhost:5055';
+    return res.redirect(
+      `${redirectProtocol}://${redirectHost}/profile/settings/myanimelist?mal=connected`
+    );
+  } catch (e) {
+    logger.error('MAL OAuth callback failed', {
+      label: 'MALAuth',
+      error: e,
+    });
+    return next({
+      status: 500,
+      message: 'Failed to complete MAL authentication.',
+    });
+  }
 });
 
 export default authRoutes;

@@ -2,6 +2,22 @@ import fs from 'fs';
 import type { TlsOptions } from 'tls';
 import type { DataSourceOptions, EntityTarget, Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
+import { Blocklist } from './entity/Blocklist';
+import DiscoverSlider from './entity/DiscoverSlider';
+import { Favorite } from './entity/Favorite';
+import Issue from './entity/Issue';
+import IssueComment from './entity/IssueComment';
+import Media from './entity/Media';
+import { MediaRequest } from './entity/MediaRequest';
+import OverrideRule from './entity/OverrideRule';
+import Season from './entity/Season';
+import SeasonRequest from './entity/SeasonRequest';
+import { Session } from './entity/Session';
+import { User } from './entity/User';
+import { UserPushSubscription } from './entity/UserPushSubscription';
+import { UserSettings } from './entity/UserSettings';
+import { WatchedStatus } from './entity/WatchedStatus';
+import { Watchlist } from './entity/Watchlist';
 
 const DB_SSL_PREFIX = 'DB_SSL_';
 
@@ -47,13 +63,32 @@ function buildSslConfig(): TlsOptions | undefined {
   };
 }
 
+const testEntities = [
+  Blocklist,
+  DiscoverSlider,
+  Favorite,
+  Issue,
+  IssueComment,
+  Media,
+  MediaRequest,
+  OverrideRule,
+  Season,
+  SeasonRequest,
+  Session,
+  User,
+  UserPushSubscription,
+  UserSettings,
+  WatchedStatus,
+  Watchlist,
+];
+
 const testConfig: DataSourceOptions = {
   type: 'sqlite',
   database: ':memory:',
-  synchronize: true,
-  dropSchema: true,
+  synchronize: false,
+  dropSchema: false,
   logging: boolFromEnv('DB_LOG_QUERIES'),
-  entities: ['server/entity/**/*.ts'],
+  entities: testEntities,
   migrations: ['server/migration/sqlite/**/*.ts'],
   subscribers: ['server/subscriber/**/*.ts'],
 };
@@ -67,7 +102,7 @@ const devConfig: DataSourceOptions = {
   migrationsRun: false,
   logging: boolFromEnv('DB_LOG_QUERIES'),
   enableWAL: true,
-  entities: ['server/entity/**/*.ts'],
+  entities: ['server/entity/**/!(*.test).ts'],
   migrations: ['server/migration/sqlite/**/*.ts'],
   subscribers: ['server/subscriber/**/*.ts'],
 };
