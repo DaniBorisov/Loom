@@ -39,6 +39,7 @@ import {
   ExclamationTriangleIcon,
   EyeSlashIcon,
   FilmIcon,
+  HeartIcon,
   MinusCircleIcon,
   PlayIcon,
   StarIcon,
@@ -47,6 +48,7 @@ import {
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
+  HeartIcon as HeartIconSolid,
 } from '@heroicons/react/24/solid';
 import { type RatingResponse } from '@server/api/ratings';
 import { IssueStatus } from '@server/constants/issue';
@@ -106,6 +108,11 @@ const messages = defineMessages('components.MovieDetails', {
   watchlistError: 'Something went wrong. Please try again.',
   removefromwatchlist: 'Remove From Watchlist',
   addtowatchlist: 'Add To Watchlist',
+  addtofavorites: 'Add To Favorites',
+  removefromfavorites: 'Remove From Favorites',
+  favoriteSuccess: '<strong>{title}</strong> added to favorites!',
+  favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
+  favoriteError: 'Failed to update favorites.',
 });
 
 interface MovieDetailsProps {
@@ -130,6 +137,26 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     useState<boolean>(false);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
   const { addToast } = useToasts();
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!movie?.id) return;
+    const checkFavorite = async () => {
+      try {
+        const res = await axios.get(
+          `/api/v1/favorites/check?mediaId=${movie.id}&source=tmdb`
+        );
+        setIsFavorited(res.data.isFavorited);
+        if (res.data.favoriteId) {
+          setFavoriteId(res.data.favoriteId);
+        }
+      } catch {
+        // Ignore
+      }
+    };
+    checkFavorite();
+  }, [movie?.id]);
 
   const {
     data,
@@ -386,6 +413,55 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     }
   };
 
+  const onClickFavoriteBtn = async (): Promise<void> => {
+    try {
+      const res = await axios.post('/api/v1/favorites', {
+        mediaId: movie?.id,
+        mediaType: MediaType.MOVIE,
+        source: 'tmdb',
+      });
+      setIsFavorited(true);
+      setFavoriteId(res.data.id);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteSuccess, {
+            title: movie?.title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const onClickRemoveFavoriteBtn = async (): Promise<void> => {
+    if (!favoriteId) return;
+    try {
+      await axios.delete(`/api/v1/favorites/${favoriteId}`);
+      setIsFavorited(false);
+      setFavoriteId(null);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteRemoved, {
+            title: movie?.title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'info', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
   const onClickHideItemBtn = async (): Promise<void> => {
     setIsBlocklistUpdating(true);
 
@@ -620,6 +696,26 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                 )}
               </>
             )}
+          <Tooltip
+            content={intl.formatMessage(
+              isFavorited
+                ? messages.removefromfavorites
+                : messages.addtofavorites
+            )}
+          >
+            <Button
+              buttonType={'ghost'}
+              className="z-40 mr-2"
+              buttonSize={'md'}
+              onClick={isFavorited ? onClickRemoveFavoriteBtn : onClickFavoriteBtn}
+            >
+              {isFavorited ? (
+                <HeartIconSolid className="text-red-400" />
+              ) : (
+                <HeartIcon />
+              )}
+            </Button>
+          </Tooltip>
           <div className="z-20">
             <PlayButton links={mediaLinks} />
           </div>

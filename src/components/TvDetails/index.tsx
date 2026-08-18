@@ -36,13 +36,14 @@ import { sortCrewPriority } from '@app/utils/creditHelpers';
 import defineMessages from '@app/utils/defineMessages';
 import { refreshIntervalHelper } from '@app/utils/refreshIntervalHelper';
 import { Disclosure, Transition } from '@headlessui/react';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, HeartIcon } from '@heroicons/react/24/outline';
 import {
   ArrowRightCircleIcon,
   CogIcon,
   ExclamationTriangleIcon,
   EyeSlashIcon,
   FilmIcon,
+  HeartIcon as HeartIconSolid,
   MinusCircleIcon,
   PlayIcon,
   StarIcon,
@@ -105,6 +106,11 @@ const messages = defineMessages('components.TvDetails', {
   watchlistError: 'Something went wrong. Please try again.',
   removefromwatchlist: 'Remove From Watchlist',
   addtowatchlist: 'Add To Watchlist',
+  addtofavorites: 'Add To Favorites',
+  removefromfavorites: 'Remove From Favorites',
+  favoriteSuccess: '<strong>{title}</strong> added to favorites!',
+  favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
+  favoriteError: 'Failed to update favorites.',
 });
 
 interface TvDetailsProps {
@@ -127,6 +133,26 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
   const [isBlocklistUpdating, setIsBlocklistUpdating] =
     useState<boolean>(false);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!tv?.id) return;
+    const checkFavorite = async () => {
+      try {
+        const res = await axios.get(
+          `/api/v1/favorites/check?mediaId=${tv.id}&source=tmdb`
+        );
+        setIsFavorited(res.data.isFavorited);
+        if (res.data.favoriteId) {
+          setFavoriteId(res.data.favoriteId);
+        }
+      } catch {
+        // Ignore
+      }
+    };
+    checkFavorite();
+  }, [tv?.id]);
   const { addToast } = useToasts();
 
   const {
@@ -418,6 +444,55 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     }
   };
 
+  const onClickFavoriteBtn = async (): Promise<void> => {
+    try {
+      const res = await axios.post('/api/v1/favorites', {
+        mediaId: tv?.id,
+        mediaType: MediaType.TV,
+        source: 'tmdb',
+      });
+      setIsFavorited(true);
+      setFavoriteId(res.data.id);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteSuccess, {
+            title: tv?.name,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const onClickRemoveFavoriteBtn = async (): Promise<void> => {
+    if (!favoriteId) return;
+    try {
+      await axios.delete(`/api/v1/favorites/${favoriteId}`);
+      setIsFavorited(false);
+      setFavoriteId(null);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteRemoved, {
+            title: tv?.name,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'info', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
   const onClickHideItemBtn = async (): Promise<void> => {
     setIsBlocklistUpdating(true);
 
@@ -664,6 +739,28 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                 )}
               </>
             )}
+          <Tooltip
+            content={intl.formatMessage(
+              isFavorited
+                ? messages.removefromfavorites
+                : messages.addtofavorites
+            )}
+          >
+            <Button
+              buttonType={'ghost'}
+              className="z-40 mr-2"
+              buttonSize={'md'}
+              onClick={
+                isFavorited ? onClickRemoveFavoriteBtn : onClickFavoriteBtn
+              }
+            >
+              {isFavorited ? (
+                <HeartIconSolid className="text-red-400" />
+              ) : (
+                <HeartIcon />
+              )}
+            </Button>
+          </Tooltip>
           <div className="z-20">
             <PlayButton links={mediaLinks} />
           </div>

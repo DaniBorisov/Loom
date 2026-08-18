@@ -18,9 +18,11 @@ import {
   ArrowDownTrayIcon,
   EyeIcon,
   EyeSlashIcon,
+  HeartIcon,
   MinusCircleIcon,
   StarIcon,
 } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { MediaStatus } from '@server/constants/media';
 import type { Watchlist } from '@server/entity/Watchlist';
 import type { MediaType } from '@server/models/Search';
@@ -54,6 +56,13 @@ const messages = defineMessages('components.TitleCard', {
     '<strong>{title}</strong> Removed from watchlist  successfully!',
   watchlistCancel: 'watchlist for <strong>{title}</strong> canceled.',
   watchlistError: 'Something went wrong. Please try again.',
+  addToFavorites: 'Add to favorites',
+  removeFromFavorites: 'Remove from favorites',
+  favoriteSuccess:
+    '<strong>{title}</strong> added to favorites!',
+  favoriteRemoved:
+    '<strong>{title}</strong> removed from favorites.',
+  favoriteError: 'Failed to update favorites.',
 });
 
 const TitleCard = ({
@@ -82,6 +91,8 @@ const TitleCard = ({
     useState<boolean>(!isAddedToWatchlist);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<number | null>(null);
 
   // Just to get the year from the date
   if (year) {
@@ -91,6 +102,73 @@ const TitleCard = ({
   useEffect(() => {
     setCurrentStatus(status);
   }, [status]);
+
+  useEffect(() => {
+    if (!id) return;
+    const checkFavorite = async () => {
+      try {
+        const res = await axios.get(
+          `/api/v1/favorites/check?mediaId=${id}&source=${source}`
+        );
+        setIsFavorited(res.data.isFavorited);
+        if (res.data.favoriteId) {
+          setFavoriteId(res.data.favoriteId);
+        }
+      } catch {
+        // Ignore - default to not favorited
+      }
+    };
+    checkFavorite();
+  }, [id, source]);
+
+  const onClickFavoriteBtn = async (): Promise<void> => {
+    try {
+      const res = await axios.post('/api/v1/favorites', {
+        mediaId: id,
+        mediaType,
+        source,
+      });
+      setIsFavorited(true);
+      setFavoriteId(res.data.id);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteSuccess, {
+            title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const onClickRemoveFavoriteBtn = async (): Promise<void> => {
+    if (!favoriteId) return;
+    try {
+      await axios.delete(`/api/v1/favorites/${favoriteId}`);
+      setIsFavorited(false);
+      setFavoriteId(null);
+      addToast(
+        <span>
+          {intl.formatMessage(messages.favoriteRemoved, {
+            title,
+            strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+          })}
+        </span>,
+        { appearance: 'info', autoDismiss: true }
+      );
+    } catch {
+      addToast(intl.formatMessage(messages.favoriteError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
 
   const requestComplete = useCallback((newStatus: MediaStatus) => {
     setCurrentStatus(newStatus);
@@ -439,6 +517,24 @@ const TitleCard = ({
                       <MinusCircleIcon className={'h-3'} />
                     </Button>
                   ))}
+                {isFavorited ? (
+                  <Button
+                    className="z-40"
+                    buttonSize={'sm'}
+                    onClick={onClickRemoveFavoriteBtn}
+                  >
+                    <HeartIconSolid className={'h-3 text-red-400'} />
+                  </Button>
+                ) : (
+                  <Button
+                    buttonType={'ghost'}
+                    className="z-40"
+                    buttonSize={'sm'}
+                    onClick={onClickFavoriteBtn}
+                  >
+                    <HeartIcon className={'h-3 text-gray-400'} />
+                  </Button>
+                )}
                 {showHideButton &&
                   currentStatus !== MediaStatus.PROCESSING &&
                   currentStatus !== MediaStatus.AVAILABLE &&
