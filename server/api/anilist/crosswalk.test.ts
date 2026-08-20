@@ -10,42 +10,43 @@ describe('AnimeCrosswalk', () => {
     crosswalk = new AnimeCrosswalk();
   });
 
-  it('loads the bundled seed data', () => {
+  it('loads the bundled crosswalk data', () => {
     assert.ok(crosswalk.isLoaded(), 'crosswalk should be loaded');
   });
 
-  it('returns correct size', () => {
-    assert.equal(crosswalk.size, 10);
+  it('has a realistic entry count (>1000)', () => {
+    assert.ok(crosswalk.size > 1000, `expected >1000, got ${crosswalk.size}`);
   });
 
-  it('looks up by AniList ID', () => {
-    const entry = crosswalk.getByAniListId(21);
+  it('looks up by AniList ID (Steins;Gate)', () => {
+    const entry = crosswalk.getByAniListId(9253);
     assert.ok(entry);
-    assert.equal(entry.name, 'Steins;Gate');
-    assert.equal(entry.TheTVDB_id, 303113);
-    assert.equal(entry.TheMovieDB_id, 1429);
-    assert.equal(entry.MAL_id, 5114);
+    assert.equal(entry.TheTVDB_id, 244061);
+    assert.equal(entry.TheMovieDB_id, 42509);
+    assert.equal(entry.MAL_id, 9253);
+    assert.equal(entry.AniDB_id, 7729);
   });
 
-  it('looks up by TVDB ID', () => {
-    const entry = crosswalk.getByTvdbId(249834);
+  it('looks up by TVDB ID (Death Note)', () => {
+    const entry = crosswalk.getByTvdbId(79481);
     assert.ok(entry);
     assert.equal(entry.AniList_id, 1535);
-    assert.equal(entry.name, 'Death Note');
+    assert.equal(entry.MAL_id, 1535);
   });
 
-  it('looks up by TMDB ID', () => {
-    const entry = crosswalk.getByTmdbId(635610);
+  it('looks up by TMDB ID (Death Note)', () => {
+    const entry = crosswalk.getByTmdbId(13916);
     assert.ok(entry);
-    assert.equal(entry.AniList_id, 101922);
-    assert.equal(entry.name, 'Jujutsu Kaisen');
+    assert.equal(entry.AniList_id, 1535);
+    assert.equal(entry.MAL_id, 1535);
   });
 
-  it('looks up by MAL ID', () => {
+  it('looks up by MAL ID (Sword Art Online)', () => {
     const entry = crosswalk.getByMalId(1575);
     assert.ok(entry);
-    assert.equal(entry.AniList_id, 11757);
-    assert.equal(entry.name, 'Sword Art Online');
+    assert.equal(entry.AniList_id, 1575);
+    assert.equal(entry.TheTVDB_id, 79525);
+    assert.equal(entry.TheMovieDB_id, 31724);
   });
 
   it('returns undefined for missing AniList ID', () => {
@@ -68,11 +69,11 @@ describe('AnimeCrosswalk', () => {
     assert.equal(entry, undefined);
   });
 
-  it('handles entry with no TMDB id (Haikyuu!!)', () => {
-    const entry = crosswalk.getByAniListId(11061);
+  it('handles entry with no TMDB id', () => {
+    const entry = crosswalk.getByAniListId(403);
     assert.ok(entry);
     assert.equal(entry.TheMovieDB_id, undefined);
-    assert.equal(entry.TheTVDB_id, 279133);
+    assert.equal(entry.TheTVDB_id, 80654);
   });
 });
 
@@ -84,16 +85,16 @@ describe('AnimeCrosswalk.resolveByMalId', () => {
   });
 
   it('resolves MAL ID to TMDB ID with ANIME media type', () => {
-    const result = crosswalk.resolveByMalId(5114);
+    const result = crosswalk.resolveByMalId(9253);
     assert.ok(result);
-    assert.equal(result.tmdbId, 1429);
+    assert.equal(result.tmdbId, 42509);
     assert.equal(result.mediaType, MediaType.ANIME);
   });
 
   it('resolves MAL ID 40748 (Jujutsu Kaisen)', () => {
     const result = crosswalk.resolveByMalId(40748);
     assert.ok(result);
-    assert.equal(result.tmdbId, 635610);
+    assert.equal(result.tmdbId, 95479);
     assert.equal(result.mediaType, MediaType.ANIME);
   });
 
@@ -102,8 +103,8 @@ describe('AnimeCrosswalk.resolveByMalId', () => {
     assert.equal(result, null);
   });
 
-  it('returns null when MAL ID exists but has no TMDB ID (Haikyuu!!)', () => {
-    const result = crosswalk.resolveByMalId(11737);
+  it('returns null when MAL ID exists but has no TMDB ID', () => {
+    const result = crosswalk.resolveByMalId(403);
     assert.equal(result, null);
   });
 });
