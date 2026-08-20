@@ -10,4 +10,3 @@ services:
     volumes:
       - .:/app:rw,cached
       - /app/node_modules
-      - /app/.next

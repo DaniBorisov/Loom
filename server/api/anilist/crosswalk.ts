@@ -39,6 +39,11 @@ export class AnimeCrosswalk {
       const raw = fs.readFileSync(CROSSWALK_PATH, 'utf-8');
       const data: AnimeCrosswalkEntry[] = JSON.parse(raw);
 
+      this.byAniList.clear();
+      this.byTvdb.clear();
+      this.byTmdb.clear();
+      this.byMal.clear();
+
       for (const entry of data) {
         if (entry.AniList_id) this.byAniList.set(entry.AniList_id, entry);
         if (entry.TheTVDB_id) this.byTvdb.set(entry.TheTVDB_id, entry);
@@ -56,6 +61,11 @@ export class AnimeCrosswalk {
         error: e,
       });
     }
+  }
+
+  public reload(): void {
+    this.loaded = false;
+    this.load();
   }
 
   public getByAniListId(id: number): AnimeCrosswalkEntry | undefined {

@@ -3,6 +3,7 @@ import blocklistedTagsProcessor from '@server/job/blocklistedTagsProcessor';
 import availabilitySync from '@server/lib/availabilitySync';
 import downloadTracker from '@server/lib/downloadtracker';
 import ImageProxy from '@server/lib/imageproxy';
+import * as crosswalkSync from '@server/lib/crosswalkSync';
 import * as malListSync from '@server/lib/malListSync';
 import refreshToken from '@server/lib/refreshToken';
 import {
@@ -274,6 +275,22 @@ export const startJobs = (): void => {
     }),
     running: () => malListSync.getStatus().running,
     cancelFn: () => malListSync.cancel(),
+  });
+
+  // Refresh anime crosswalk dataset weekly
+  scheduledJobs.push({
+    id: 'crosswalk-refresh',
+    name: 'Anime Crosswalk Refresh',
+    type: 'process',
+    interval: 'days',
+    cronSchedule: jobs['crosswalk-refresh'].schedule,
+    job: schedule.scheduleJob(jobs['crosswalk-refresh'].schedule, () => {
+      logger.info('Starting scheduled job: Anime Crosswalk Refresh', {
+        label: 'Jobs',
+      });
+      crosswalkSync.run();
+    }),
+    running: () => crosswalkSync.isRunning(),
   });
 
   logger.info('Scheduled jobs loaded', { label: 'Jobs' });

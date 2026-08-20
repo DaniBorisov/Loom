@@ -75,6 +75,15 @@ describe('AnimeCrosswalk', () => {
     assert.equal(entry.TheMovieDB_id, undefined);
     assert.equal(entry.TheTVDB_id, 80654);
   });
+
+  it('reload() re-reads data from disk and preserves entries', () => {
+    const sizeBefore = crosswalk.size;
+    crosswalk.reload();
+    assert.ok(crosswalk.isLoaded(), 'crosswalk should be loaded after reload');
+    assert.equal(crosswalk.size, sizeBefore, 'size should be same after reload');
+    const entry = crosswalk.getByAniListId(9253);
+    assert.ok(entry, 'entry should still be findable after reload');
+  });
 });
 
 describe('AnimeCrosswalk.resolveByMalId', () => {
