@@ -370,7 +370,8 @@ export type JobId =
   | 'image-cache-cleanup'
   | 'availability-sync'
   | 'process-blocklisted-tags'
-  | 'mal-list-sync';
+  | 'mal-list-sync'
+  | 'crosswalk-refresh';
 
 export interface AllSettings {
   clientId: string;
@@ -612,6 +613,9 @@ class Settings {
         },
         'mal-list-sync': {
           schedule: '0 0 4 * * *',
+        },
+        'crosswalk-refresh': {
+          schedule: '0 0 2 * * 0',
         },
       },
       network: {
