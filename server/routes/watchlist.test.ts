@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { before, describe, it } from 'node:test';
 
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
@@ -8,11 +8,64 @@ import {
   WatchlistStatus,
 } from '@server/entity/Watchlist';
 import { MediaType } from '@server/constants/media';
+import { getSettings } from '@server/lib/settings';
+import { checkUser } from '@server/middleware/auth';
 import { setupTestDb } from '@server/test/db';
+import type { Express } from 'express';
+import express from 'express';
+import session from 'express-session';
+import request from 'supertest';
+import authRoutes from './auth';
+import watchlistRoutes from './watchlist';
+
+let app: Express;
+
+function createApp() {
+  const app = express();
+  app.use(express.json());
+  app.use(
+    session({
+      secret: 'test-secret',
+      resave: false,
+      saveUninitialized: false,
+    })
+  );
+  app.use(checkUser);
+  app.use('/auth', authRoutes);
+  app.use('/api/v1/watchlist', watchlistRoutes);
+  app.use(
+    (
+      err: { status?: number; message?: string },
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      res
+        .status(err.status ?? 500)
+        .json({ status: err.status ?? 500, message: err.message });
+    }
+  );
+  return app;
+}
 
 setupTestDb();
 
-describe('Watchlist routes', () => {
+async function loginAs(email: string, password: string) {
+  const settings = getSettings();
+  const priorLocalLogin = settings.main.localLogin;
+  settings.main.localLogin = true;
+
+  try {
+    const agent = request.agent(app);
+    const res = await agent.post('/auth/local').send({ email, password });
+    assert.strictEqual(res.status, 200);
+    return agent;
+  } finally {
+    settings.main.localLogin = priorLocalLogin;
+  }
+}
+
+describe('Watchlist routes (entity-level)', () => {
   it('should create and retrieve a watchlist item', async () => {
     const userRepo = getRepository(User);
     const wlRepo = getRepository(Watchlist);
@@ -133,5 +186,70 @@ describe('Watchlist routes', () => {
     });
 
     assert.ok(!friendItems.some((i) => i.tmdbId === 50005));
+  });
+});
+
+describe('Watchlist routes (HTTP-level)', () => {
+  const wlRepo = getRepository(Watchlist);
+
+  before(async () => {
+    app = createApp();
+  });
+
+  async function seedWatchlistItem(
+    admin: User,
+    tmdbId: number,
+    status = WatchlistStatus.WANT_TO_WATCH
+  ) {
+    return wlRepo.save(
+      new Watchlist({
+        tmdbId,
+        mediaType: MediaType.MOVIE,
+        title: `Seed Movie ${tmdbId}`,
+        requestedBy: admin,
+        status,
+      } as never)
+    );
+  }
+
+  it('should prevent user B from patching user A\'s watchlist item', async () => {
+    const userRepo = getRepository(User);
+    const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
+    const friend = await userRepo.findOneByOrFail({ email: 'friend@seerr.dev' });
+
+    // Seed a watchlist item owned by admin
+    const wl = await seedWatchlistItem(admin, 99001);
+    const itemId = wl.id;
+
+    // Login as friend and try to patch admin's item
+    const friendAgent = await loginAs('friend@seerr.dev', 'test1234');
+    const patchRes = await friendAgent
+      .patch(`/api/v1/watchlist/${itemId}`)
+      .send({ status: 'watching' });
+    assert.strictEqual(patchRes.status, 403);
+
+    // Item status should be unchanged
+    const item = await wlRepo.findOneBy({ id: itemId });
+    assert.ok(item);
+    assert.equal(item.status, WatchlistStatus.WANT_TO_WATCH);
+  });
+
+  it('should allow a user to patch their own watchlist item', async () => {
+    const userRepo = getRepository(User);
+    const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
+
+    // Seed a watchlist item owned by admin
+    const wl = await seedWatchlistItem(admin, 99002);
+    const itemId = wl.id;
+
+    // Login as admin and patch own item
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const patchRes = await adminAgent
+      .patch(`/api/v1/watchlist/${itemId}`)
+      .send({ status: 'watching' });
+    assert.strictEqual(patchRes.status, 200);
+
+    const item = await wlRepo.findOneBy({ id: itemId });
+    assert.equal(item?.status, WatchlistStatus.WATCHING);
   });
 });
