@@ -1,6 +1,6 @@
+import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import { getRepository } from '@server/datasource';
-import type { FavoriteSource } from '@server/entity/Favorite';
-import { Favorite } from '@server/entity/Favorite';
+import { Favorite, FavoriteSource } from '@server/entity/Favorite';
 import { favoriteCreate } from '@server/interfaces/api/favoriteCreate';
 import logger from '@server/logger';
 import { Router } from 'express';
@@ -18,6 +18,19 @@ favoritesRoutes.post<never, Favorite, Favorite>('/', async (req, res, next) => {
     }
 
     const values = favoriteCreate.parse(req.body);
+
+    if (values.source === FavoriteSource.ANILIST) {
+      const crosswalk = getAnimeCrosswalk();
+      const entry = crosswalk.getByAniListId(values.mediaId);
+      if (entry?.TheMovieDB_id) {
+        values.mediaId = entry.TheMovieDB_id;
+      } else {
+        logger.warn(
+          `No crosswalk TMDB mapping for AniList ID ${values.mediaId}, storing raw ID`,
+          { label: 'Favorites' }
+        );
+      }
+    }
 
     const existing = await getRepository(Favorite).findOne({
       where: {

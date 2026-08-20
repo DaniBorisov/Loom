@@ -238,4 +238,30 @@ describe('Favorite routes (HTTP-level)', () => {
     const gone = await favRepo.findOneBy({ id: favId });
     assert.equal(gone, null);
   });
+
+  it('should resolve AniList ID to TMDB ID when favoriting', async () => {
+    const favRepo = getRepository(Favorite);
+
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+
+    // AniList ID 9253 (Steins;Gate) maps to TMDB ID 42509 in crosswalk
+    const createRes = await adminAgent
+      .post('/api/v1/favorites')
+      .send({ mediaId: 9253, mediaType: 'anime', source: 'anilist' });
+    assert.strictEqual(createRes.status, 201);
+
+    // mediaId should be resolved to TMDB ID
+    assert.equal(createRes.body.mediaId, 42509);
+    assert.equal(createRes.body.source, 'anilist');
+
+    // Favorite check should work with resolved TMDB ID + source=anilist
+    const checkRes = await adminAgent.get(
+      '/api/v1/favorites/check?mediaId=42509&source=anilist'
+    );
+    assert.strictEqual(checkRes.status, 200);
+    assert.equal(checkRes.body.isFavorited, true);
+
+    // Cleanup
+    await favRepo.delete({ id: createRes.body.id });
+  });
 });

@@ -153,6 +153,7 @@ const TitleCard = ({
       await axios.delete(`/api/v1/favorites/${favoriteId}`);
       setIsFavorited(false);
       setFavoriteId(null);
+      mutate('/api/v1/favorites');
       addToast(
         <span>
           {intl.formatMessage(messages.favoriteRemoved, {
