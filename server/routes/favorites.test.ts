@@ -5,16 +5,70 @@ import {
   FavoriteSource,
 } from '@server/entity/Favorite';
 import { User } from '@server/entity/User';
+import { getSettings } from '@server/lib/settings';
+import { checkUser } from '@server/middleware/auth';
 import { setupTestDb } from '@server/test/db';
 import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
+import type { Express } from 'express';
+import express from 'express';
+import session from 'express-session';
+import request from 'supertest';
+import authRoutes from './auth';
+import favoritesRoutes from './favorites';
+
+let app: Express;
+
+function createApp() {
+  const app = express();
+  app.use(express.json());
+  app.use(
+    session({
+      secret: 'test-secret',
+      resave: false,
+      saveUninitialized: false,
+    })
+  );
+  app.use(checkUser);
+  app.use('/auth', authRoutes);
+  app.use('/api/v1/favorites', favoritesRoutes);
+  app.use(
+    (
+      err: { status?: number; message?: string },
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      res
+        .status(err.status ?? 500)
+        .json({ status: err.status ?? 500, message: err.message });
+    }
+  );
+  return app;
+}
 
 setupTestDb();
 
-describe('Favorite routes', () => {
+async function loginAs(email: string, password: string) {
+  const settings = getSettings();
+  const priorLocalLogin = settings.main.localLogin;
+  settings.main.localLogin = true;
+
+  try {
+    const agent = request.agent(app);
+    const res = await agent.post('/auth/local').send({ email, password });
+    assert.strictEqual(res.status, 200);
+    return agent;
+  } finally {
+    settings.main.localLogin = priorLocalLogin;
+  }
+}
+
+describe('Favorite routes (entity-level)', () => {
   let admin: User;
 
   before(async () => {
+    app = createApp();
     admin = await getRepository(User).findOneByOrFail({
       email: 'admin@seerr.dev',
     });
@@ -135,5 +189,53 @@ describe('Favorite routes', () => {
     await favRepo.remove(fav);
     const found = await favRepo.findOneBy({ id: fav.id });
     assert.equal(found, null);
+  });
+});
+
+describe('Favorite routes (HTTP-level)', () => {
+  before(async () => {
+    app = createApp();
+  });
+
+  it('should prevent user B from deleting user A\'s favorite via DELETE', async () => {
+    const favRepo = getRepository(Favorite);
+
+    // Login as admin and create a favorite
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const createRes = await adminAgent
+      .post('/api/v1/favorites')
+      .send({ mediaId: 9901, mediaType: 'movie', source: 'tmdb' });
+    assert.strictEqual(createRes.status, 201);
+    const favId = createRes.body.id;
+
+    // Login as friend and try to delete admin's favorite
+    const friendAgent = await loginAs('friend@seerr.dev', 'test1234');
+    const deleteRes = await friendAgent.delete(
+      `/api/v1/favorites/${favId}`
+    );
+    assert.strictEqual(deleteRes.status, 403);
+
+    // Favorite should still exist
+    const stillThere = await favRepo.findOneBy({ id: favId });
+    assert.ok(stillThere, 'favorite should still exist after 403');
+  });
+
+  it('should allow a user to delete their own favorite', async () => {
+    const favRepo = getRepository(Favorite);
+
+    // Login as admin and create a favorite
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const createRes = await adminAgent
+      .post('/api/v1/favorites')
+      .send({ mediaId: 9902, mediaType: 'movie', source: 'tmdb' });
+    assert.strictEqual(createRes.status, 201);
+    const favId = createRes.body.id;
+
+    // Delete own favorite
+    const deleteRes = await adminAgent.delete(`/api/v1/favorites/${favId}`);
+    assert.strictEqual(deleteRes.status, 204);
+
+    const gone = await favRepo.findOneBy({ id: favId });
+    assert.equal(gone, null);
   });
 });
