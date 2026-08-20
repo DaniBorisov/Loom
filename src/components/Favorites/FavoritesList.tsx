@@ -100,6 +100,7 @@ const FavoritesList = () => {
                 type={item.mediaType as 'movie' | 'tv' | 'anime'}
                 isAddedToWatchlist={false}
                 canExpand
+                source={item.source === 'anilist' ? 'anilist' : 'tmdb'}
               />
             </li>
           ))}
