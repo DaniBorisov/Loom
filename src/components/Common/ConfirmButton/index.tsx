@@ -25,6 +25,7 @@ const ConfirmButton = forwardRef<HTMLButtonElement, ConfirmButtonProps>(
           if (!isClicked) {
             setIsClicked(true);
           } else {
+            setIsClicked(false);
             onClick();
           }
         }}

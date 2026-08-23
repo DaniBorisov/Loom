@@ -98,6 +98,37 @@ watchlistRoutes.patch<{ id: string }, Watchlist>(
   }
 );
 
+watchlistRoutes.delete('/mal-import', async (req, res, next) => {
+  if (!req.user) {
+    return next({
+      status: 401,
+      message: 'You must be logged in to delete MAL-imported watchlist items.',
+    });
+  }
+  try {
+    const wlRepo = getRepository(Watchlist);
+    const items = await wlRepo.find({
+      where: {
+        requestedBy: { id: req.user.id },
+        externalSource: 'mal',
+      },
+    });
+
+    if (items.length === 0) {
+      return res.status(200).json({ deleted: 0 });
+    }
+
+    await wlRepo.remove(items);
+    logger.info(
+      `Deleted ${items.length} MAL-imported watchlist items for user ${req.user.id}`,
+      { label: 'Watchlist' }
+    );
+    return res.status(200).json({ deleted: items.length });
+  } catch (error) {
+    return next({ status: 500, message: (error as Error).message });
+  }
+});
+
 watchlistRoutes.delete('/:tmdbId', async (req, res, next) => {
   if (!req.user) {
     return next({
