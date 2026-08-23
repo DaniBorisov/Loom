@@ -177,6 +177,9 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     ),
   });
 
+  const isAnime =
+    data?.keywords?.some((k) => k.id === ANIME_KEYWORD_ID) ?? false;
+
   const { data: ratingData } = useSWR<RTRating>(
     `/api/v1/tv/${router.query.tvId}/ratings`
   );
@@ -404,7 +407,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     try {
       await axios.post('/api/v1/watchlist', {
         tmdbId: tv?.id,
-        mediaType: MediaType.TV,
+        mediaType: isAnime ? MediaType.ANIME : MediaType.TV,
         title: tv?.name,
       });
       addToast(
@@ -485,7 +488,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     try {
       const res = await axios.post('/api/v1/favorites', {
         mediaId: tv?.id,
-        mediaType: MediaType.TV,
+        mediaType: isAnime ? MediaType.ANIME : MediaType.TV,
         source: 'tmdb',
       });
       setIsFavorited(true);
