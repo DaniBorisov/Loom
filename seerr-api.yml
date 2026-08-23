@@ -5367,6 +5367,32 @@ paths:
           description: Not authorized to update this item
         '404':
           description: Watchlist item not found
+    delete:
+      summary: Delete watchlist item
+      description: Removes a watchlist item by tmdbId and mediaType.
+      tags:
+        - watchlist
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The tmdbId of the watchlist item
+        - in: query
+          name: mediaType
+          required: true
+          schema:
+            type: string
+            enum:
+              - movie
+              - tv
+              - anime
+      responses:
+        '204':
+          description: Successfully removed watchlist item
+        '404':
+          description: Watchlist item not found
   /watchlist/mal-import:
     delete:
       summary: Delete all MAL-imported watchlist items
@@ -5388,32 +5414,6 @@ paths:
                     type: number
         '401':
           description: Unauthorized
-  /watchlist/{tmdbId}:
-    delete:
-      summary: Delete watchlist item
-      description: Removes a watchlist item.
-      tags:
-        - watchlist
-      parameters:
-        - in: path
-          name: tmdbId
-          description: tmdbId ID
-          required: true
-          example: '1'
-          schema:
-            type: string
-        - in: query
-          name: mediaType
-          required: true
-          schema:
-            type: string
-            enum:
-              - movie
-              - tv
-              - anime
-      responses:
-        '204':
-          description: Succesfully removed watchlist item
   /user/{userId}/watchlist:
     get:
       summary: Get the Plex watchlist for a specific user
