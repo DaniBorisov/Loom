@@ -60,6 +60,28 @@ const TmdbTitleCard = ({
     ) : null;
   }
 
+  if (type === 'anime') {
+    return (
+      <TitleCard
+        key={title.id}
+        id={title.id}
+        isAddedToWatchlist={
+          title.mediaInfo?.watchlists?.length || isAddedToWatchlist
+        }
+        image={title.posterPath}
+        status={title.mediaInfo?.status}
+        summary={title.overview}
+        title={!isMovie(title) ? title.name : title.title}
+        userScore={title.voteAverage}
+        year={!isMovie(title) ? title.firstAirDate : undefined}
+        mediaType={'anime'}
+        canExpand={canExpand}
+        mutateParent={mutateParent}
+        source={source}
+      />
+    );
+  }
+
   return isMovie(title) ? (
     <TitleCard
       key={title.id}
