@@ -129,7 +129,7 @@ watchlistRoutes.delete('/mal-import', async (req, res, next) => {
   }
 });
 
-watchlistRoutes.delete('/:tmdbId', async (req, res, next) => {
+watchlistRoutes.delete('/:id', async (req, res, next) => {
   if (!req.user) {
     return next({
       status: 401,
@@ -150,7 +150,7 @@ watchlistRoutes.delete('/:tmdbId', async (req, res, next) => {
     }
 
     await Watchlist.deleteWatchlist(
-      Number(req.params.tmdbId),
+      Number(req.params.id),
       mediaType,
       req.user
     );
