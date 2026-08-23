@@ -5367,6 +5367,27 @@ paths:
           description: Not authorized to update this item
         '404':
           description: Watchlist item not found
+  /watchlist/mal-import:
+    delete:
+      summary: Delete all MAL-imported watchlist items
+      description: >
+        Removes every watchlist item imported from MyAnimeList
+        (externalSource = 'mal') for the authenticated user.
+        Does not affect the MAL account connection or tokens.
+      tags:
+        - watchlist
+      responses:
+        '200':
+          description: MAL-imported items deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: number
+        '401':
+          description: Unauthorized
   /watchlist/{tmdbId}:
     delete:
       summary: Delete watchlist item

@@ -11,8 +11,9 @@ import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
   LinkIcon,
-  XCircleIcon,
-} from '@heroicons/react/24/solid';
+    TrashIcon,
+    XCircleIcon,
+  } from '@heroicons/react/24/solid';
 import axios from 'axios';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -53,6 +54,12 @@ const messages = defineMessages(
     importRunning: 'Importing… {progress}/{total}',
     alreadyImported: 'Already Imported (Up to Date)',
     reimport: 'Re-Import',
+    removeMalImport: 'Remove Imported List',
+    removeMalImportConfirm:
+      'This will remove all MAL-imported watchlist items from Loom. Your MyAnimeList account and connection will not be affected. You can re-import later.',
+    removeMalImportSuccess:
+      'Removed {count} MAL-imported watchlist item(s).',
+    removeMalImportEmpty: 'No MAL-imported items to remove.',
   }
 );
 
@@ -84,6 +91,7 @@ const UserMALSettings = () => {
   } | null>(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [savingSync, setSavingSync] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
@@ -215,6 +223,32 @@ const UserMALSettings = () => {
     }
   }, [user, autoSyncEnabled, revalidateUser, intl]);
 
+  const handleRemoveMalImport = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await axios.delete<{ deleted: number }>(
+        '/api/v1/watchlist/mal-import'
+      );
+      setError(null);
+      setImportResult(null);
+      setProgress(null);
+      if (data.deleted > 0) {
+        setSuccessMessage(
+          intl.formatMessage(messages.removeMalImportSuccess, {
+            count: data.deleted,
+          })
+        );
+      } else {
+        setSuccessMessage(
+          intl.formatMessage(messages.removeMalImportEmpty)
+        );
+      }
+    } catch {
+      setSuccessMessage(null);
+      setError(intl.formatMessage(messages.toastSaveError));
+    }
+  }, [user, intl]);
+
   const applicationTitle =
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (user as any)?.settings?.applicationTitle || 'Loom';
@@ -244,6 +278,12 @@ const UserMALSettings = () => {
       {error && (
         <div className="mb-6">
           <Alert title={error} type="error" />
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-6">
+          <Alert title={successMessage} type="info" />
         </div>
       )}
 
@@ -395,6 +435,18 @@ const UserMALSettings = () => {
               {intl.formatMessage(messages.importAnimeList)}
             </Button>
           )}
+          <div className="mt-4 border-t border-gray-700 pt-4">
+            <ConfirmButton
+              onClick={handleRemoveMalImport}
+              confirmText={intl.formatMessage(globalMessages.areyousure)}
+            >
+              <TrashIcon className="h-5 w-5" />
+              <span>{intl.formatMessage(messages.removeMalImport)}</span>
+            </ConfirmButton>
+            <p className="mt-2 text-xs text-gray-500">
+              {intl.formatMessage(messages.removeMalImportConfirm)}
+            </p>
+          </div>
         </div>
       )}
 

@@ -252,4 +252,109 @@ describe('Watchlist routes (HTTP-level)', () => {
     const item = await wlRepo.findOneBy({ id: itemId });
     assert.equal(item?.status, WatchlistStatus.WATCHING);
   });
+
+  it('should delete only MAL-imported watchlist items for the authenticated user', async () => {
+    const userRepo = getRepository(User);
+    const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
+
+    // Seed: MAL-imported items
+    await wlRepo.save(
+      new Watchlist({
+        tmdbId: 98001,
+        mediaType: MediaType.ANIME,
+        title: 'MAL Anime 1',
+        requestedBy: admin,
+        externalSource: 'mal',
+        externalId: '12345',
+      } as never)
+    );
+    await wlRepo.save(
+      new Watchlist({
+        tmdbId: 98002,
+        mediaType: MediaType.ANIME,
+        title: 'MAL Anime 2',
+        requestedBy: admin,
+        externalSource: 'mal',
+        externalId: '12346',
+      } as never)
+    );
+
+    // Seed: manually-added item (no externalSource)
+    await seedWatchlistItem(admin, 98003);
+
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent.delete('/api/v1/watchlist/mal-import');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.deleted, 2);
+
+    // MAL items gone
+    const malItems = await wlRepo.find({
+      where: { requestedBy: { id: admin.id }, externalSource: 'mal' },
+    });
+    assert.strictEqual(malItems.length, 0);
+
+    // Manual item still exists
+    const manualItem = await wlRepo.findOneBy({
+      tmdbId: 98003,
+      requestedBy: { id: admin.id },
+    });
+    assert.ok(manualItem);
+  });
+
+  it('should not affect another user\'s MAL-imported items (cross-user isolation)', async () => {
+    const userRepo = getRepository(User);
+    const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
+    const friend = await userRepo.findOneByOrFail({
+      email: 'friend@seerr.dev',
+    });
+
+    // Seed: friend's MAL-imported item
+    await wlRepo.save(
+      new Watchlist({
+        tmdbId: 98010,
+        mediaType: MediaType.ANIME,
+        title: 'Friend MAL Anime',
+        requestedBy: friend,
+        externalSource: 'mal',
+        externalId: '99999',
+      } as never)
+    );
+
+    // Seed: admin's MAL-imported item
+    await wlRepo.save(
+      new Watchlist({
+        tmdbId: 98011,
+        mediaType: MediaType.ANIME,
+        title: 'Admin MAL Anime',
+        requestedBy: admin,
+        externalSource: 'mal',
+        externalId: '88888',
+      } as never)
+    );
+
+    // Admin deletes their MAL items
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent.delete('/api/v1/watchlist/mal-import');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.deleted, 1);
+
+    // Friend's item untouched
+    const friendItem = await wlRepo.findOneBy({
+      tmdbId: 98010,
+      requestedBy: { id: friend.id },
+    });
+    assert.ok(friendItem);
+  });
+
+  it('should return 200 with deleted: 0 when user has no MAL-imported items', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent.delete('/api/v1/watchlist/mal-import');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.deleted, 0);
+  });
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await request(app).delete('/api/v1/watchlist/mal-import');
+    assert.strictEqual(res.status, 401);
+  });
 });
