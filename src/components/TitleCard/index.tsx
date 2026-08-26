@@ -2,6 +2,7 @@ import Spinner from '@app/assets/spinner.svg';
 import BlocklistModal from '@app/components/BlocklistModal';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
+import LibraryBadge from '@app/components/Common/LibraryBadge';
 import StatusBadgeMini from '@app/components/Common/StatusBadgeMini';
 import Tooltip from '@app/components/Common/Tooltip';
 import RequestModal from '@app/components/RequestModal';
@@ -46,6 +47,7 @@ interface TitleCardProps {
   isAddedToWatchlist?: number | boolean;
   mutateParent?: () => void;
   source?: 'tmdb' | 'anilist';
+  libraryAvailable?: boolean;
 }
 
 const messages = defineMessages('components.TitleCard', {
@@ -78,6 +80,7 @@ const TitleCard = ({
   canExpand = false,
   mutateParent,
   source = 'tmdb',
+  libraryAvailable = false,
 }: TitleCardProps) => {
   const isTouch = useIsTouch();
   const intl = useIntl();
@@ -581,6 +584,12 @@ const TitleCard = ({
                 </div>
               </div>
             )}
+            {libraryAvailable &&
+              (!currentStatus || currentStatus === MediaStatus.UNKNOWN) && (
+                <div className="pointer-events-none z-40 flex">
+                  <LibraryBadge shrink />
+                </div>
+              )}
           </div>
           <Transition
             as={Fragment}

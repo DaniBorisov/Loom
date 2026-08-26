@@ -519,7 +519,19 @@ class JellyfinAPI extends ExternalAPI {
         300
       );
 
-      return response.Items?.[0] ?? null;
+      const candidate = response.Items?.[0] ?? null;
+      if (!candidate) return null;
+
+      // AnyProviderIdEquals may not filter correctly on some Jellyfin versions.
+      // Verify the returned item actually has the matching provider ID.
+      const candidateId =
+        candidate.ProviderIds?.[providerType] ??
+        candidate.ProviderIds?.TheMovieDb;
+      if (String(candidateId) !== String(providerId)) {
+        return null;
+      }
+
+      return candidate;
     } catch (e) {
       logger.error(
         `Something went wrong while looking up provider ID ${providerType}:${providerId} in Jellyfin: ${e.message}`,

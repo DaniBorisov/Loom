@@ -7799,6 +7799,36 @@ paths:
       responses:
         '204':
           description: Succesfully removed media item
+  /media/jellyfin-check/{tmdbId}:
+    get:
+      summary: Check Jellyfin availability
+      description: 'Checks whether a TMDB item exists in the Jellyfin/Emby library. Returns { available: boolean }. Requires authentication.'
+      tags:
+        - media
+      parameters:
+        - in: path
+          name: tmdbId
+          description: TMDB ID of the item
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: type
+          description: Filter by media type (movie or tv)
+          required: false
+          schema:
+            type: string
+            enum: [movie, tv]
+      responses:
+        '200':
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
   /media/{mediaId}/file:
     delete:
       summary: Delete media file

@@ -8,6 +8,7 @@ import BlocklistModal from '@app/components/BlocklistModal';
 import Badge from '@app/components/Common/Badge';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
+import LibraryBadge from '@app/components/Common/LibraryBadge';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import PageTitle from '@app/components/Common/PageTitle';
 import type { PlayButtonLink } from '@app/components/Common/PlayButton';
@@ -26,6 +27,7 @@ import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import Season from '@app/components/TvDetails/Season';
 import useDeepLinks from '@app/hooks/useDeepLinks';
+import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import useLocale from '@app/hooks/useLocale';
 import useSettings from '@app/hooks/useSettings';
 import useToasts from '@app/hooks/useToasts';
@@ -179,6 +181,11 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
 
   const isAnime =
     data?.keywords?.some((k) => k.id === ANIME_KEYWORD_ID) ?? false;
+
+  const { data: libraryData } = useJellyfinAvailability(
+    data?.id,
+    isAnime ? 'anime' : 'tv'
+  );
 
   const { data: ratingData } = useSWR<RTRating>(
     `/api/v1/tv/${router.query.tvId}/ratings`
@@ -677,6 +684,13 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
               plexUrl={plexUrl}
               serviceUrl={data.mediaInfo?.serviceUrl}
             />
+            {libraryData?.available &&
+              (!data.mediaInfo?.status ||
+                data.mediaInfo?.status === MediaStatus.UNKNOWN) && (
+                <span className="ml-2">
+                  <LibraryBadge />
+                </span>
+              )}
             {settings.currentSettings.series4kEnabled &&
               hasPermission(
                 [
