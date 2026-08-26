@@ -684,11 +684,13 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
               plexUrl={plexUrl}
               serviceUrl={data.mediaInfo?.serviceUrl}
             />
-            {libraryData?.available && (
-              <span className="ml-2">
-                <LibraryBadge />
-              </span>
-            )}
+            {libraryData?.available &&
+              (!data.mediaInfo?.status ||
+                data.mediaInfo?.status === MediaStatus.UNKNOWN) && (
+                <span className="ml-2">
+                  <LibraryBadge />
+                </span>
+              )}
             {settings.currentSettings.series4kEnabled &&
               hasPermission(
                 [

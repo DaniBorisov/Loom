@@ -1,4 +1,4 @@
-import { CheckBadgeIcon } from '@heroicons/react/20/solid';
+import { CheckCircleIcon } from '@heroicons/react/20/solid';
 
 interface LibraryBadgeProps {
   shrink?: boolean;
@@ -16,9 +16,8 @@ const LibraryBadge = ({ shrink = false }: LibraryBadgeProps) => {
           shrink ? 'w-4 sm:w-5 border p-0' : 'w-5 ring-1 p-0.5'
         }`}
       >
-        <CheckBadgeIcon />
+        <CheckCircleIcon />
       </div>
-      <span className="pl-1 pr-2 text-gray-200">In Library</span>
     </div>
   );
 };

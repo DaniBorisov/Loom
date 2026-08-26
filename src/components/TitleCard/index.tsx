@@ -584,11 +584,12 @@ const TitleCard = ({
                 </div>
               </div>
             )}
-            {libraryAvailable && (
-              <div className="pointer-events-none z-40 flex">
-                <LibraryBadge shrink />
-              </div>
-            )}
+            {libraryAvailable &&
+              (!currentStatus || currentStatus === MediaStatus.UNKNOWN) && (
+                <div className="pointer-events-none z-40 flex">
+                  <LibraryBadge shrink />
+                </div>
+              )}
           </div>
           <Transition
             as={Fragment}

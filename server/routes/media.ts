@@ -459,6 +459,12 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
         includeItemTypes
       );
 
+      logger.info(
+        `Jellyfin availability check: tmdbId=${tmdbId} type=${mediaType ?? 'any'} found=${!!item}` +
+          (item ? ` name="${item.Name}"` : ''),
+        { label: 'Media' }
+      );
+
       return res.status(200).json({ available: !!item });
     } catch (e) {
       logger.error('Failed to check Jellyfin availability', {
