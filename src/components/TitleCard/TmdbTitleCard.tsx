@@ -1,4 +1,5 @@
 import TitleCard from '@app/components/TitleCard';
+import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import { Permission, useUser } from '@app/hooks/useUser';
 import type { MovieDetails } from '@server/models/Movie';
 import type { TvDetails } from '@server/models/Tv';
@@ -41,6 +42,11 @@ const TmdbTitleCard = ({
     inView ? `${url}` : null
   );
 
+  const { data: libraryData } = useJellyfinAvailability(
+    title ? tmdbId : undefined,
+    type
+  );
+
   if (!title && !error) {
     return (
       <div ref={ref}>
@@ -78,6 +84,7 @@ const TmdbTitleCard = ({
         canExpand={canExpand}
         mutateParent={mutateParent}
         source={source}
+        libraryAvailable={libraryData?.available}
       />
     );
   }
@@ -99,6 +106,7 @@ const TmdbTitleCard = ({
       canExpand={canExpand}
       mutateParent={mutateParent}
       source={source}
+      libraryAvailable={libraryData?.available}
     />
   ) : (
     <TitleCard
@@ -117,6 +125,7 @@ const TmdbTitleCard = ({
       canExpand={canExpand}
       mutateParent={mutateParent}
       source={source}
+      libraryAvailable={libraryData?.available}
     />
   );
 };

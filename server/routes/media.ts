@@ -1,8 +1,10 @@
+import JellyfinAPI from '@server/api/jellyfin';
 import RadarrAPI from '@server/api/servarr/radarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import TautulliAPI from '@server/api/tautulli';
 import TheMovieDb from '@server/api/themoviedb';
 import { MediaStatus, MediaType } from '@server/constants/media';
+import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import Season from '@server/entity/Season';
@@ -15,6 +17,7 @@ import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { isAuthenticated } from '@server/middleware/auth';
+import { getHostname } from '@server/utils/getHostname';
 import { Router } from 'express';
 import type { FindOneOptions } from 'typeorm';
 import { EntityNotFoundError, In, IsNull, Not } from 'typeorm';
@@ -403,6 +406,67 @@ mediaRoutes.get<{ id: string }, MediaWatchDataResponse>(
         mediaId: req.params.id,
       });
       next({ status: 500, message: 'Failed to fetch watch data.' });
+    }
+  }
+);
+
+mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
+  '/jellyfin-check/:tmdbId',
+  isAuthenticated(),
+  async (req, res, next) => {
+    const settings = getSettings();
+    const mediaServerType = settings.main.mediaServerType;
+
+    if (
+      mediaServerType !== MediaServerType.JELLYFIN &&
+      mediaServerType !== MediaServerType.EMBY
+    ) {
+      return res.status(200).json({ available: false });
+    }
+
+    const tmdbId = req.params.tmdbId;
+    const mediaType = req.query.type as string | undefined;
+    const includeItemTypes =
+      mediaType === 'tv' ? 'Series' : mediaType === 'movie' ? 'Movie' : 'Movie,Series';
+
+    try {
+      const userRepository = getRepository(User);
+      const admin = await userRepository.findOne({
+        where: { id: 1 },
+        select: [
+          'id',
+          'jellyfinAuthToken',
+          'jellyfinDeviceId',
+          'jellyfinUserId',
+        ],
+      });
+
+      if (!admin || !admin.jellyfinAuthToken) {
+        return res.status(200).json({ available: false });
+      }
+
+      const jellyfin = new JellyfinAPI(
+        getHostname(),
+        settings.jellyfin.apiKey,
+        admin.jellyfinDeviceId
+      );
+
+      jellyfin.setUserId(admin.jellyfinUserId ?? '');
+
+      const item = await jellyfin.lookupByProviderId(
+        String(tmdbId),
+        'Tmdb',
+        includeItemTypes
+      );
+
+      return res.status(200).json({ available: !!item });
+    } catch (e) {
+      logger.error('Failed to check Jellyfin availability', {
+        label: 'Media',
+        tmdbId,
+        errorMessage: e.message,
+      });
+      return res.status(200).json({ available: false });
     }
   }
 );

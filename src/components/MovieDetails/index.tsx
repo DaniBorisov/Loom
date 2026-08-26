@@ -8,6 +8,7 @@ import TmdbLogo from '@app/assets/tmdb_logo.svg';
 import BlocklistModal from '@app/components/BlocklistModal';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
+import LibraryBadge from '@app/components/Common/LibraryBadge';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import PageTitle from '@app/components/Common/PageTitle';
 import type { PlayButtonLink } from '@app/components/Common/PlayButton';
@@ -23,6 +24,7 @@ import RequestButton from '@app/components/RequestButton';
 import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import useDeepLinks from '@app/hooks/useDeepLinks';
+import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import useLocale from '@app/hooks/useLocale';
 import useSettings from '@app/hooks/useSettings';
 import useToasts from '@app/hooks/useToasts';
@@ -179,6 +181,8 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
       15000
     ),
   });
+
+  const { data: libraryData } = useJellyfinAvailability(data?.id, 'movie');
 
   const { data: ratingData } = useSWR<RatingResponse>(
     `/api/v1/movie/${router.query.movieId}/ratingscombined`
@@ -631,6 +635,11 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
               plexUrl={plexUrl}
               serviceUrl={data.mediaInfo?.serviceUrl}
             />
+            {libraryData?.available && (
+              <span className="ml-2">
+                <LibraryBadge />
+              </span>
+            )}
             {settings.currentSettings.movie4kEnabled &&
               hasPermission(
                 [
