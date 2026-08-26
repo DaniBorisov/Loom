@@ -7802,7 +7802,7 @@ paths:
   /media/jellyfin-check/{tmdbId}:
     get:
       summary: Check Jellyfin availability
-      description: Checks whether a TMDB item exists in the Jellyfin/Emby library. Returns `{ available: boolean }`. Requires authentication.
+      description: 'Checks whether a TMDB item exists in the Jellyfin/Emby library. Returns { available: boolean }. Requires authentication.'
       tags:
         - media
       parameters:
