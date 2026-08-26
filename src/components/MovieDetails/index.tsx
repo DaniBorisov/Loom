@@ -384,6 +384,9 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
       });
 
       if (response.data) {
+        setWatchlistEntryId(response.data.id);
+        setWatchlistStatus(response.data.status ?? 'want_to_watch');
+
         addToast(
           <span>
             {intl.formatMessage(messages.watchlistSuccess, {
@@ -429,6 +432,8 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     } finally {
       setIsUpdating(false);
       setToggleWatchlist((prevState) => !prevState);
+      setWatchlistEntryId(null);
+      setWatchlistStatus('want_to_watch');
     }
   };
 

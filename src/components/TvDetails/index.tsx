@@ -412,11 +412,17 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     setIsUpdating(true);
 
     try {
-      await axios.post('/api/v1/watchlist', {
+      const response = await axios.post('/api/v1/watchlist', {
         tmdbId: tv?.id,
         mediaType: isAnime ? MediaType.ANIME : MediaType.TV,
         title: tv?.name,
       });
+
+      if (response.data) {
+        setWatchlistEntryId(response.data.id);
+        setWatchlistStatus(response.data.status ?? 'want_to_watch');
+      }
+
       addToast(
         <span>
           {intl.formatMessage(messages.watchlistSuccess, {
@@ -459,6 +465,8 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
 
       setIsUpdating(false);
       setToggleWatchlist((prevState) => !prevState);
+      setWatchlistEntryId(null);
+      setWatchlistStatus('want_to_watch');
     } catch {
       addToast(intl.formatMessage(messages.watchlistError), {
         appearance: 'error',
