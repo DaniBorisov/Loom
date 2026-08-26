@@ -450,7 +450,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
 
     try {
       await axios.delete(
-        `/api/v1/watchlist/${tv?.id}?mediaType=${MediaType.TV}`
+        `/api/v1/watchlist/${tv?.id}?mediaType=${isAnime ? MediaType.ANIME : MediaType.TV}`
       );
 
       addToast(

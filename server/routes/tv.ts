@@ -51,9 +51,11 @@ tvRoutes.get('/:id', async (req, res, next) => {
   try {
     const { tmdbTv, tmdbId } = await resolveTmdbId(tmdb, requestedId);
 
-    const metadataProvider = tmdbTv.keywords.results.some(
+    const isAnime = tmdbTv.keywords.results.some(
       (keyword: TmdbKeyword) => keyword.id === ANIME_KEYWORD_ID
-    )
+    );
+
+    const metadataProvider = isAnime
       ? await getMetadataProvider('anime')
       : await getMetadataProvider('tv');
     const tv = await metadataProvider.getTvShow({
@@ -65,7 +67,7 @@ tvRoutes.get('/:id', async (req, res, next) => {
     const watchlistEntry = await getRepository(Watchlist).findOne({
       where: {
         tmdbId,
-        mediaType: MediaType.TV,
+        mediaType: isAnime ? MediaType.ANIME : MediaType.TV,
         requestedBy: {
           id: req.user?.id,
         },
