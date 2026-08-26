@@ -3,6 +3,7 @@ import ExternalAPI from '@server/api/externalapi';
 import { ApiErrorCode } from '@server/constants/error';
 import { MediaServerType } from '@server/constants/server';
 import availabilitySync from '@server/lib/availabilitySync';
+import cacheManager from '@server/lib/cache';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { ApiError } from '@server/types/error';
@@ -174,6 +175,7 @@ class JellyfinAPI extends ExternalAPI {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
+        nodeCache: cacheManager.getCache('jellyfin').data,
       }
     );
 
@@ -487,6 +489,40 @@ class JellyfinAPI extends ExternalAPI {
     } catch (e) {
       logger.error(
         `Something went wrong while getting library content from the Jellyfin server: ${e.message}`,
+        { label: 'Jellyfin API', error: e.response?.status }
+      );
+
+      if (!e.response) {
+        throw new ApiError(502, ApiErrorCode.ConnectionError);
+      }
+
+      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+    }
+  }
+
+  public async lookupByProviderId(
+    providerId: string,
+    providerType: 'Tmdb' | 'TheMovieDb' | 'Tvdb',
+    includeItemTypes: string = 'Movie,Series'
+  ): Promise<JellyfinLibraryItemExtended | null> {
+    try {
+      const response = await this.get<JellyfinItemsReponse>(
+        '/Items',
+        {
+          params: {
+            AnyProviderIdEquals: `${providerType}:${providerId}`,
+            IncludeItemTypes: includeItemTypes,
+            Recursive: true,
+            Fields: 'ProviderIds',
+          },
+        },
+        300
+      );
+
+      return response.Items?.[0] ?? null;
+    } catch (e) {
+      logger.error(
+        `Something went wrong while looking up provider ID ${providerType}:${providerId} in Jellyfin: ${e.message}`,
         { label: 'Jellyfin API', error: e.response?.status }
       );
 

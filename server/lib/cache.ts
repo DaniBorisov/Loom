@@ -7,6 +7,7 @@ export type AvailableCacheIds =
   | 'rt'
   | 'imdb'
   | 'github'
+  | 'jellyfin'
   | 'plexguid'
   | 'plextv'
   | 'plexwatchlist'
@@ -61,6 +62,10 @@ class CacheManager {
     github: new Cache('github', 'GitHub API', {
       stdTtl: 21600,
       checkPeriod: 60 * 30,
+    }),
+    jellyfin: new Cache('jellyfin', 'Jellyfin API', {
+      stdTtl: 300,
+      checkPeriod: 120,
     }),
     plexguid: new Cache('plexguid', 'Plex GUID', {
       stdTtl: 86400 * 7, // 1 week cache
