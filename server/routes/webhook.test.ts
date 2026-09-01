@@ -1,0 +1,235 @@
+import assert from 'node:assert/strict';
+import { after, before, describe, it } from 'node:test';
+
+import { MediaType } from '@server/constants/media';
+import { getRepository } from '@server/datasource';
+import Media from '@server/entity/Media';
+import { User } from '@server/entity/User';
+import { WatchedStatus } from '@server/entity/WatchedStatus';
+import { Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
+import { setupTestDb } from '@server/test/db';
+import type { Express } from 'express';
+import express from 'express';
+import session from 'express-session';
+import request from 'supertest';
+import webhookRoutes from './webhook';
+
+const WEBHOOK_SECRET = 'test-webhook-secret';
+
+let app: Express;
+
+function createApp() {
+  const app = express();
+  app.use(express.json());
+  app.use(
+    session({
+      secret: 'test-secret',
+      resave: false,
+      saveUninitialized: false,
+    })
+  );
+  app.use('/webhook', webhookRoutes);
+  app.use(
+    (
+      err: { status?: number; message?: string },
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      res
+        .status(err.status ?? 500)
+        .json({ status: err.status ?? 500, message: err.message });
+    }
+  );
+  return app;
+}
+
+before(() => {
+  process.env.JELLYFIN_WEBHOOK_SECRET = WEBHOOK_SECRET;
+  app = createApp();
+});
+
+after(() => {
+  delete process.env.JELLYFIN_WEBHOOK_SECRET;
+});
+
+setupTestDb();
+
+async function attachJellyfinUser(email: string, jellyfinUserId: string) {
+  const userRepo = getRepository(User);
+  const user = await userRepo.findOneOrFail({ where: { email } });
+  user.jellyfinUserId = jellyfinUserId;
+  await userRepo.save(user);
+  return user;
+}
+
+async function createMovieEntry(tmdbId: number) {
+  const mediaRepository = getRepository(Media);
+  let media = await mediaRepository.findOne({
+    where: { tmdbId, mediaType: MediaType.MOVIE },
+  });
+  if (!media) {
+    media = new Media({ tmdbId, mediaType: MediaType.MOVIE });
+    await mediaRepository.save(media);
+  }
+  return media;
+}
+
+function moviePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    NotificationType: 'PlaybackStop',
+    UserId: 'jf-user-admin',
+    ItemId: 'jf-item-1',
+    ItemType: 'Movie',
+    Name: 'Test Movie',
+    PlayedToCompletion: true,
+    Played: true,
+    ProviderIds: { Tmdb: '12345', Tvdb: '999', Imdb: 'tt123' },
+    ...overrides,
+  };
+}
+
+describe('POST /webhook/jellyfin', () => {
+  it('returns 401 when the webhook secret header is missing or invalid', async () => {
+    const payload = moviePayload();
+
+    const missingSecret = await request(app)
+      .post('/webhook/jellyfin')
+      .send(payload);
+    assert.strictEqual(missingSecret.status, 401);
+
+    const wrongSecret = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', 'wrong-secret')
+      .send(payload);
+    assert.strictEqual(wrongSecret.status, 401);
+  });
+
+  it('ignores notification types other than PlaybackStop', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload({ NotificationType: 'SessionEnded' }));
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
+  });
+
+  it('ignores PlaybackStop events where the item was not watched', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(
+        moviePayload({
+          PlayedToCompletion: false,
+          Played: false,
+        })
+      );
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
+  });
+
+  it('records watched status for a Jellyfin user linked to a local user', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+
+    assert.strictEqual(res.status, 200);
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-item-1',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus.mediaId, media.id);
+    assert.ok(watchedStatus.watchedAt);
+    assert.strictEqual(watchedStatus.progress, 1);
+  });
+
+  it('is idempotent for repeated notifications of the same item', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    const first = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+    const second = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+
+    assert.strictEqual(first.status, 200);
+    assert.strictEqual(second.status, 200);
+    const watchedEntries = await getRepository(WatchedStatus).find({
+      where: { userId: 1, jellyfinItemId: 'jf-item-1' },
+    });
+    assert.strictEqual(watchedEntries.length, 1);
+    assert.strictEqual(watchedEntries[0]!.mediaId, media.id);
+  });
+
+  it('does not record when no local user is linked to the Jellyfin user', async () => {
+    await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
+  });
+
+  it('does not record when no local media record matches the TMDB id', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload({ ProviderIds: { Tmdb: '99999' } }));
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
+  });
+
+  it('updates the matching watchlist entry to watched', async () => {
+    const admin = await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    const watchlistRepository = getRepository(Watchlist);
+    const watchlist = await watchlistRepository.save(
+      new Watchlist({
+        tmdbId: 12345,
+        mediaType: MediaType.MOVIE,
+        title: 'Test Movie',
+        requestedBy: admin,
+        media,
+        status: WatchlistStatus.WANT_TO_WATCH,
+      })
+    );
+    assert.strictEqual(watchlist.status, WatchlistStatus.WANT_TO_WATCH);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+
+    assert.strictEqual(res.status, 200);
+    const updated = await watchlistRepository.findOneBy({ id: watchlist.id });
+    assert.strictEqual(updated?.status, WatchlistStatus.WATCHED);
+  });
+});
