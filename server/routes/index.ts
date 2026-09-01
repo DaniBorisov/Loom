@@ -43,6 +43,7 @@ import searchRoutes from './search';
 import serviceRoutes from './service';
 import tvRoutes from './tv';
 import user from './user';
+import webhookRoutes from './webhook';
 
 const router = Router();
 
@@ -180,6 +181,7 @@ router.use('/service', isAuthenticated(), serviceRoutes);
 router.use('/issue', isAuthenticated(), issueRoutes);
 router.use('/issueComment', isAuthenticated(), issueCommentRoutes);
 router.use('/auth', authRoutes);
+router.use('/webhook', webhookRoutes);
 router.use(
   '/overrideRule',
   isAuthenticated(Permission.ADMIN),

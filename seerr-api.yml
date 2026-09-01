@@ -2219,6 +2219,18 @@ components:
       name: X-Api-Key
 
 paths:
+  /webhook/jellyfin:
+    post:
+      summary: Receive Jellyfin webhook notifications
+      description: 'Receives PlaybackStop notifications from the Jellyfin Webhook plugin. Authenticated via the X-Webhook-Secret header, which must match the JELLYFIN_WEBHOOK_SECRET environment variable.'
+      security: []
+      tags:
+        - public
+      responses:
+        '200':
+          description: Notification accepted
+        '401':
+          description: Invalid or missing webhook secret
   /status:
     get:
       summary: Get Seerr status
