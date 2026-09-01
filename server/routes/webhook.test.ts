@@ -232,4 +232,51 @@ describe('POST /webhook/jellyfin', () => {
     const updated = await watchlistRepository.findOneBy({ id: watchlist.id });
     assert.strictEqual(updated?.status, WatchlistStatus.WATCHED);
   });
+
+  it('matches a Jellyfin user when the notification uses a different UUID format than stored', async () => {
+    const userRepo = getRepository(User);
+    const user = await userRepo.findOneOrFail({
+      where: { email: 'admin@seerr.dev' },
+    });
+    user.jellyfinUserId = 'c0c95c3b3db6449392887f62911c7222';
+    await userRepo.save(user);
+
+    const media = await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(
+        moviePayload({
+          UserId: 'c0c95c3b-3db6-4493-9288-7f62911c7222',
+        })
+      );
+
+    assert.strictEqual(res.status, 200);
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: user.id,
+      jellyfinItemId: 'jf-item-1',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus?.mediaId, media.id);
+  });
+
+  it('parses the JSON body even when Content-Type is not application/json', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .set('Content-Type', 'text/plain')
+      .send(JSON.stringify(moviePayload()));
+
+    assert.strictEqual(res.status, 200);
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-item-1',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus.mediaId, media.id);
+  });
 });
