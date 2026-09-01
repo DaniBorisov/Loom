@@ -88,8 +88,9 @@ describe('syncPlayedItems (fallback Jellyfin watched sync)', () => {
     assert.strictEqual(watched.length, 2);
   });
 
-  it('is a no-op when no items are new (already marked via webhook)', async () => {
+  it('is a no-op for watched status when no items are new (already marked via webhook)', async () => {
     const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+    await ensureMedia(11111);
 
     await getRepository(WatchedStatus).save(
       new WatchedStatus({
@@ -110,6 +111,73 @@ describe('syncPlayedItems (fallback Jellyfin watched sync)', () => {
 
     assert.strictEqual(result.recorded, 0);
     assert.strictEqual(result.skipped, 0);
+    const statusCount = await getRepository(WatchedStatus).count({
+      where: { userId: 1 },
+    });
+    assert.strictEqual(statusCount, 1);
+  });
+
+  it('creates a watched watchlist entry for a played item not on any watchlist', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => [
+      playedMovie('jf-unlisted', '44444'),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.recorded, 1);
+    assert.strictEqual(result.skipped, 0);
+
+    const media = await getRepository(Media).findOne({
+      where: { tmdbId: 44444, mediaType: MediaType.MOVIE },
+    });
+    assert.ok(media);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 44444,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: user.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
+  });
+
+  it('backfills a watched watchlist entry for an item already in watched_status', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+    await ensureMedia(11111);
+
+    await getRepository(WatchedStatus).save(
+      new WatchedStatus({
+        userId: 1,
+        user,
+        jellyfinItemId: 'jf-backfill',
+        mediaId: 1,
+        watchedAt: new Date(),
+        progress: 1,
+      })
+    );
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => [
+      playedMovie('jf-backfill', '11111'),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.recorded, 0);
+    assert.strictEqual(result.skipped, 0);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 11111,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: user.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
   });
 
   it('skips items with no TMDB provider id or unsupported type', async () => {

@@ -193,7 +193,7 @@ describe('POST /webhook/jellyfin', () => {
     assert.strictEqual(watchedCount, 0);
   });
 
-  it('does not record when no local media record matches the TMDB id', async () => {
+  it('creates a watched watchlist entry when no local media record matches the TMDB id', async () => {
     await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
 
     const res = await request(app)
@@ -203,7 +203,23 @@ describe('POST /webhook/jellyfin', () => {
 
     assert.strictEqual(res.status, 200);
     const watchedCount = await getRepository(WatchedStatus).count();
-    assert.strictEqual(watchedCount, 0);
+    assert.strictEqual(watchedCount, 1);
+
+    const media = await getRepository(Media).findOne({
+      where: { tmdbId: 99999, mediaType: MediaType.MOVIE },
+    });
+    assert.ok(media);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 99999,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: 1 },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
+    assert.strictEqual(watchlist.title, 'Test Movie');
   });
 
   it('updates the matching watchlist entry to watched', async () => {
@@ -231,6 +247,29 @@ describe('POST /webhook/jellyfin', () => {
     assert.strictEqual(res.status, 200);
     const updated = await watchlistRepository.findOneBy({ id: watchlist.id });
     assert.strictEqual(updated?.status, WatchlistStatus.WATCHED);
+  });
+
+  it('creates a watched watchlist entry when none exists', async () => {
+    const admin = await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 12345,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: admin.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
+    assert.strictEqual(watchlist.media.id, media.id);
   });
 
   it('matches a Jellyfin user when the notification uses a different UUID format than stored', async () => {
