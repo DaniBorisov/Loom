@@ -1,16 +1,17 @@
+import Button from '@app/components/Common/Button';
 import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import { useUser } from '@app/hooks/useUser';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
-import type { WatchlistItem } from '@server/interfaces/api/discoverInterfaces';
 import type { WatchlistStatus } from '@server/entity/Watchlist';
+import type { WatchlistItem } from '@server/interfaces/api/discoverInterfaces';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { useIntl } from 'react-intl';
-import useSWR from 'swr';
+import useSWRInfinite from 'swr/infinite';
 
 interface WatchlistEntry extends WatchlistItem {
   status: WatchlistStatus;
@@ -35,6 +36,7 @@ const messages = defineMessages('components.Discover.DiscoverWatchlist', {
   discoverwatchlist: 'Your Watchlist',
   watchlist: 'Plex Watchlist',
   emptyTab: 'Nothing here yet. Browse media to add items to your watchlist.',
+  loadMore: 'Load More',
 });
 
 const DiscoverWatchlist = () => {
@@ -46,12 +48,25 @@ const DiscoverWatchlist = () => {
 
   const [activeTab, setActiveTab] = useState<TabKey>('want_to_watch');
 
-  const buildUrl = () => {
-    return `/api/v1/watchlist?status=${activeTab}`;
+  const getKey = (
+    pageIndex: number,
+    previousPageData: WatchlistPageData | null
+  ) => {
+    if (previousPageData && pageIndex + 1 > previousPageData.totalPages) {
+      return null;
+    }
+
+    return `/api/v1/watchlist?status=${activeTab}&page=${pageIndex + 1}`;
   };
 
-  const { data: watchlistData, error } =
-    useSWR<WatchlistPageData>(buildUrl());
+  const {
+    data: watchlistData,
+    error,
+    size,
+    setSize,
+  } = useSWRInfinite<WatchlistPageData>(getKey, {
+    revalidateFirstPage: false,
+  });
 
   if (error) {
     return <ErrorPage statusCode={500} />;
@@ -61,7 +76,13 @@ const DiscoverWatchlist = () => {
     router.query.userId ? messages.watchlist : messages.discoverwatchlist
   );
 
-  const items = watchlistData?.results ?? [];
+  const items = (watchlistData ?? []).reduce(
+    (a, v) => [...a, ...v.results],
+    [] as WatchlistEntry[]
+  );
+
+  const hasMorePages =
+    watchlistData && watchlistData[watchlistData.length - 1].totalPages > size;
 
   return (
     <>
@@ -113,19 +134,32 @@ const DiscoverWatchlist = () => {
           </p>
         </div>
       ) : (
-        <ul className="cards-vertical">
-          {items.map((item) => (
-            <li key={item.id}>
-              <TmdbTitleCard
-                id={item.tmdbId}
-                tmdbId={item.tmdbId}
-                type={item.mediaType}
-                isAddedToWatchlist
-                canExpand
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="cards-vertical">
+            {items.map((item) => (
+              <li key={item.id}>
+                <TmdbTitleCard
+                  id={item.tmdbId}
+                  tmdbId={item.tmdbId}
+                  type={item.mediaType}
+                  isAddedToWatchlist
+                  canExpand
+                />
+              </li>
+            ))}
+          </ul>
+          {hasMorePages && (
+            <div className="mt-8 flex justify-center">
+              <Button
+                buttonType="primary"
+                onClick={() => setSize(size + 1)}
+                disabled={size !== (watchlistData?.length ?? 0)}
+              >
+                {intl.formatMessage(messages.loadMore)}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </>
   );
