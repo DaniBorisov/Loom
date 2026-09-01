@@ -25,10 +25,13 @@ const ITEM_TYPE_TO_MEDIA_TYPE: Record<string, MediaType | undefined> = {
 };
 
 /**
- * Queries Jellyfin for every item the given local user has played and records
- * any that are not already marked locally. This is the fallback for anything
- * the webhook missed (restart, network blip, misconfiguration); it only writes
- * rows for the diff so repeated runs are cheap no-ops.
+ * Queries Jellyfin for every item the given local user has played and makes
+ * sure each one is recorded locally and appears on the user's watchlist as
+ * watched. This is the fallback for anything the webhook missed (restart,
+ * network blip, misconfiguration); processing already-recorded items each run
+ * keeps watchlist entries in sync and backfills items the webhook recorded
+ * before the auto-add behavior existed. The writes are idempotent, so repeated
+ * runs stay cheap.
  */
 export async function syncPlayedItems(
   user: User
@@ -87,21 +90,20 @@ export async function syncPlayedItems(
       continue;
     }
 
-    // Cheap diff: skip anything Jellyfin's webhook already recorded.
-    if (alreadyRecorded.has(item.Id)) {
-      continue;
-    }
-
+    // Everything is processed every run (not just new ids) so watchlist
+    // entries are ensured for items recorded by earlier runs too. Only items
+    // that were not previously recorded count toward `recorded`.
     const result = await markItemWatched({
       user,
       jellyfinItemId: item.Id,
       tmdbId: Number(tmdbId),
       mediaType,
+      title: item.Name,
     });
 
     if (result === 'skipped') {
       skipped += 1;
-    } else {
+    } else if (!alreadyRecorded.has(item.Id)) {
       recorded += 1;
     }
   }

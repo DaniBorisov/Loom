@@ -137,6 +137,7 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
       jellyfinItemId: payload.ItemId,
       tmdbId,
       mediaType,
+      title: payload.Name,
     });
   } catch (e) {
     logger.error('Failed to process Jellyfin webhook notification', {
