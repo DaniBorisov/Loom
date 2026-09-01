@@ -1,0 +1,155 @@
+import JellyfinAPI from '@server/api/jellyfin';
+import { MediaType } from '@server/constants/media';
+import { getRepository } from '@server/datasource';
+import { User } from '@server/entity/User';
+import { WatchedStatus } from '@server/entity/WatchedStatus';
+import { markItemWatched } from '@server/lib/jellyfinWatchedStatus';
+import { getSettings } from '@server/lib/settings';
+import logger from '@server/logger';
+import { getHostname } from '@server/utils/getHostname';
+
+export interface JellyfinWatchedSyncResult {
+  user: number;
+  recorded: number;
+  skipped: number;
+}
+
+/**
+ * Maps a Jellyfin item type to the app's media type. Only Movie and Series
+ * items are reconciled here; standalone episodes are ignored because the
+ * watchlist tracks whole movies and series.
+ */
+const ITEM_TYPE_TO_MEDIA_TYPE: Record<string, MediaType | undefined> = {
+  Movie: MediaType.MOVIE,
+  Series: MediaType.TV,
+};
+
+/**
+ * Queries Jellyfin for every item the given local user has played and records
+ * any that are not already marked locally. This is the fallback for anything
+ * the webhook missed (restart, network blip, misconfiguration); it only writes
+ * rows for the diff so repeated runs are cheap no-ops.
+ */
+export async function syncPlayedItems(
+  user: User
+): Promise<JellyfinWatchedSyncResult> {
+  const watchedStatusRepository = getRepository(WatchedStatus);
+
+  const alreadyRecorded = new Set(
+    (
+      await watchedStatusRepository.find({
+        where: { userId: user.id },
+        select: ['jellyfinItemId'],
+      })
+    ).map((w) => w.jellyfinItemId)
+  );
+
+  const jellyfin = await buildJellyfinClient();
+  if (!jellyfin) {
+    return { user: user.id, recorded: 0, skipped: 0 };
+  }
+
+  // Normalize UUID format so it matches the id stored against the user.
+  const normalizedUserId =
+    user.jellyfinUserId && /^[0-9a-f]{32}$/i.test(user.jellyfinUserId)
+      ? user.jellyfinUserId.replace(
+          /^(.{8})(.{4})(.{4})(.{4})(.{12})$/,
+          '$1-$2-$3-$4-$5'
+        )
+      : user.jellyfinUserId;
+
+  jellyfin.setUserId(normalizedUserId ?? '');
+
+  let playedItems;
+  try {
+    playedItems = await jellyfin.getPlayedItems();
+  } catch (e) {
+    logger.warn(
+      `Failed to fetch played items for Jellyfin user ${user.jellyfinUserId}`,
+      {
+        label: 'Jellyfin Watched Sync',
+        userId: user.id,
+        errorMessage: e.message,
+      }
+    );
+    return { user: user.id, recorded: 0, skipped: 0 };
+  }
+
+  let recorded = 0;
+  let skipped = 0;
+
+  for (const item of playedItems) {
+    const mediaType = ITEM_TYPE_TO_MEDIA_TYPE[item.Type];
+    const tmdbId = item.ProviderIds?.Tmdb ?? item.ProviderIds?.TheMovieDb;
+
+    if (!mediaType || !tmdbId) {
+      skipped += 1;
+      continue;
+    }
+
+    // Cheap diff: skip anything Jellyfin's webhook already recorded.
+    if (alreadyRecorded.has(item.Id)) {
+      continue;
+    }
+
+    const result = await markItemWatched({
+      user,
+      jellyfinItemId: item.Id,
+      tmdbId: Number(tmdbId),
+      mediaType,
+    });
+
+    if (result === 'skipped') {
+      skipped += 1;
+    } else {
+      recorded += 1;
+    }
+  }
+
+  logger.info('Jellyfin watched sync completed', {
+    label: 'Jellyfin Watched Sync',
+    userId: user.id,
+    jellyfinUserId: user.jellyfinUserId,
+    playedItems: playedItems.length,
+    recorded,
+    skipped,
+  });
+
+  return { user: user.id, recorded, skipped };
+}
+
+/**
+ * Builds a Jellyfin API client using the admin's credentials so the job can
+ * read the library of any linked user.
+ */
+async function buildJellyfinClient(): Promise<JellyfinAPI | null> {
+  const settings = getSettings();
+  const hostname = getHostname(settings.jellyfin);
+
+  if (!hostname) {
+    logger.debug('Skipping Jellyfin watched sync: server not configured', {
+      label: 'Jellyfin Watched Sync',
+    });
+    return null;
+  }
+
+  const userRepository = getRepository(User);
+  const admin = await userRepository.findOne({
+    where: { id: 1 },
+    select: ['id', 'jellyfinAuthToken', 'jellyfinDeviceId', 'jellyfinUserId'],
+  });
+
+  if (!admin?.jellyfinAuthToken) {
+    logger.debug(
+      'Skipping Jellyfin watched sync: no admin Jellyfin credentials',
+      { label: 'Jellyfin Watched Sync' }
+    );
+    return null;
+  }
+
+  return new JellyfinAPI(
+    hostname,
+    admin.jellyfinAuthToken,
+    admin.jellyfinDeviceId
+  );
+}

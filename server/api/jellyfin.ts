@@ -546,6 +546,58 @@ class JellyfinAPI extends ExternalAPI {
     }
   }
 
+  /**
+   * Fetches every item the current user has played, used by the fallback
+   * watched-status sync job to reconcile against locally recorded status.
+   */
+  public async getPlayedItems(): Promise<JellyfinLibraryItemExtended[]> {
+    const items: JellyfinLibraryItemExtended[] = [];
+    let startIndex = 0;
+
+    try {
+      for (;;) {
+        const response = await this.get<JellyfinItemsReponse>(
+          `/Users/${this.userId ?? 'Me'}/Items`,
+          {
+            params: {
+              Recursive: true,
+              Filters: 'IsPlayed',
+              Fields: 'ProviderIds,UserData',
+              IncludeItemTypes: 'Movie,Series',
+              StartIndex: startIndex,
+              Limit: 500,
+            },
+          },
+          300
+        );
+
+        const page = response.Items ?? [];
+        items.push(...page);
+
+        if (
+          !page.length ||
+          startIndex + page.length >= (response.TotalRecordCount ?? startIndex)
+        ) {
+          break;
+        }
+        startIndex += page.length;
+      }
+
+      return items;
+    } catch (e) {
+      logger.error(
+        `Something went wrong while fetching played items from the Jellyfin server: ${e.message}`,
+        { label: 'Jellyfin API', error: e?.response?.status }
+      );
+
+      if (!e.response) {
+        throw new ApiError(502, ApiErrorCode.ConnectionError);
+      }
+
+      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+    }
+  }
+
   public async getItemData(
     id: string
   ): Promise<JellyfinLibraryItemExtended | undefined> {

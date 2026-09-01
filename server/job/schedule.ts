@@ -1,9 +1,12 @@
 import { MediaServerType } from '@server/constants/server';
+import { getRepository } from '@server/datasource';
+import { User } from '@server/entity/User';
 import blocklistedTagsProcessor from '@server/job/blocklistedTagsProcessor';
 import availabilitySync from '@server/lib/availabilitySync';
+import * as crosswalkSync from '@server/lib/crosswalkSync';
 import downloadTracker from '@server/lib/downloadtracker';
 import ImageProxy from '@server/lib/imageproxy';
-import * as crosswalkSync from '@server/lib/crosswalkSync';
+import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
 import * as malListSync from '@server/lib/malListSync';
 import refreshToken from '@server/lib/refreshToken';
 import {
@@ -18,6 +21,7 @@ import { getSettings } from '@server/lib/settings';
 import watchlistSync from '@server/lib/watchlistsync';
 import logger from '@server/logger';
 import schedule from 'node-schedule';
+import { IsNull, Not } from 'typeorm';
 
 interface ScheduledJob {
   id: JobId;
@@ -146,6 +150,24 @@ export const startJobs = (): void => {
       }),
       running: () => jellyfinFullScanner.status().running,
       cancelFn: () => jellyfinFullScanner.cancel(),
+    });
+
+    // Run fallback watched-status sync every hour
+    scheduledJobs.push({
+      id: 'jellyfin-watched-sync',
+      name: 'Jellyfin Watched Sync',
+      type: 'process',
+      interval: 'hours',
+      cronSchedule: jobs['jellyfin-watched-sync'].schedule,
+      job: schedule.scheduleJob(
+        jobs['jellyfin-watched-sync'].schedule,
+        async () => {
+          logger.info('Starting scheduled job: Jellyfin Watched Sync', {
+            label: 'Jobs',
+          });
+          await runWatchedSync();
+        }
+      ),
     });
   }
 
@@ -294,4 +316,34 @@ export const startJobs = (): void => {
   });
 
   logger.info('Scheduled jobs loaded', { label: 'Jobs' });
+};
+
+/**
+ * Runs the fallback Jellyfin watched-status sync for every locally linked
+ * Jellyfin user so the whole diff is evaluated in a single pass.
+ */
+const runWatchedSync = async (): Promise<void> => {
+  const userRepository = getRepository(User);
+  const linkedUsers = await userRepository.find({
+    where: { jellyfinUserId: Not(IsNull()) },
+    select: ['id', 'jellyfinUserId'],
+  });
+
+  const results = [];
+  for (const user of linkedUsers) {
+    try {
+      results.push(await syncPlayedItems(user));
+    } catch (e) {
+      logger.error('Failed to run Jellyfin watched sync for user', {
+        label: 'Jellyfin Watched Sync',
+        userId: user.id,
+        errorMessage: e.message,
+      });
+    }
+  }
+
+  logger.info('Jellyfin Watched Sync complete', {
+    label: 'Jellyfin Watched Sync',
+    results,
+  });
 };
