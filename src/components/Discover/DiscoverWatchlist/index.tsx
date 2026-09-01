@@ -65,7 +65,6 @@ const DiscoverWatchlist = () => {
     size,
     setSize,
   } = useSWRInfinite<WatchlistPageData>(getKey, {
-    revalidateFirstPage: false,
     refreshInterval: 30000,
   });
 
