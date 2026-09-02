@@ -10,60 +10,71 @@ const ServiceWorkerSetup = () => {
   const { currentSettings } = useSettings();
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && user?.id) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then(async (registration) => {
-          console.log(
-            '[SW] Registration successful, scope is:',
-            registration.scope
-          );
-
-          const pushNotificationsEnabled =
-            localStorage.getItem('pushNotificationsEnabled') === 'true';
-
-          // Reset the notifications flag if permissions were revoked
-          if (
-            Notification.permission !== 'granted' &&
-            pushNotificationsEnabled
-          ) {
-            localStorage.setItem('pushNotificationsEnabled', 'false');
-            console.warn(
-              '[SW] Push permissions not granted — skipping resubscribe'
-            );
-
-            return;
-          }
-
-          // Bypass resubscribing if we have manually disabled push notifications
-          if (!pushNotificationsEnabled) {
-            return;
-          }
-
-          const subscription = await registration.pushManager.getSubscription();
-
-          console.log(
-            '[SW] Existing push subscription:',
-            subscription?.endpoint
-          );
-
-          const verified = await verifyAndResubscribePushSubscription(
-            user.id,
-            currentSettings
-          );
-
-          if (verified) {
-            console.log('[SW] Push subscription verified or refreshed.');
-          } else {
-            console.warn(
-              '[SW] Push subscription verification failed or not available.'
-            );
-          }
-        })
-        .catch(function (error) {
-          console.log('[SW] Service worker registration failed, error:', error);
-        });
+    if (!('serviceWorker' in navigator)) {
+      return;
     }
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then(async (registration) => {
+        console.log(
+          '[SW] Registration successful, scope is:',
+          registration.scope
+        );
+
+        // Push-management steps only apply to a signed-in user. Registering
+        // the service worker itself must NOT depend on login: Chromium will
+        // not consider the app installable (and will not fire
+        // `beforeinstallprompt`) unless a service worker with a fetch handler
+        // is registered and active from the initial page load.
+        if (!user?.id) {
+          return;
+        }
+
+        const pushNotificationsEnabled =
+          localStorage.getItem('pushNotificationsEnabled') === 'true';
+
+        // Reset the notifications flag if permissions were revoked
+        if (
+          Notification.permission !== 'granted' &&
+          pushNotificationsEnabled
+        ) {
+          localStorage.setItem('pushNotificationsEnabled', 'false');
+          console.warn(
+            '[SW] Push permissions not granted — skipping resubscribe'
+          );
+
+          return;
+        }
+
+        // Bypass resubscribing if we have manually disabled push notifications
+        if (!pushNotificationsEnabled) {
+          return;
+        }
+
+        const subscription = await registration.pushManager.getSubscription();
+
+        console.log(
+          '[SW] Existing push subscription:',
+          subscription?.endpoint
+        );
+
+        const verified = await verifyAndResubscribePushSubscription(
+          user.id,
+          currentSettings
+        );
+
+        if (verified) {
+          console.log('[SW] Push subscription verified or refreshed.');
+        } else {
+          console.warn(
+            '[SW] Push subscription verification failed or not available.'
+          );
+        }
+      })
+      .catch(function (error) {
+        console.log('[SW] Service worker registration failed, error:', error);
+      });
   }, [currentSettings, user]);
   return null;
 };
