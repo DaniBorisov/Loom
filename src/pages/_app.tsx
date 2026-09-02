@@ -1,4 +1,5 @@
 import Layout from '@app/components/Layout';
+import InstallAppPrompt from '@app/components/InstallAppPrompt';
 import LoadingBar from '@app/components/LoadingBar';
 import PWAHeader from '@app/components/PWAHeader';
 import ServiceWorkerSetup from '@app/components/ServiceWorkerSetup';
@@ -218,6 +219,9 @@ const CoreApp: Omit<NextAppComponentType, 'origGetInitialProps'> = ({
               </Head>
               <StatusChecker />
               <ServiceWorkerSetup />
+              <InstallAppPrompt
+                applicationTitle={currentSettings.applicationTitle}
+              />
               <UserContext initialUser={user}>{component}</UserContext>
               <Toaster
                 position="top-right"
