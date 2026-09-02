@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
-import { after, before, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it, mock } from 'node:test';
 
+import JellyfinAPI from '@server/api/jellyfin';
 import { MediaType } from '@server/constants/media';
+import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { User } from '@server/entity/User';
 import { WatchedStatus } from '@server/entity/WatchedStatus';
 import { Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
+import { getSettings } from '@server/lib/settings';
 import { setupTestDb } from '@server/test/db';
 import type { Express } from 'express';
 import express from 'express';
@@ -55,6 +58,21 @@ after(() => {
 
 setupTestDb();
 
+beforeEach(async () => {
+  mock.restoreAll();
+
+  const settings = getSettings();
+  settings.main.mediaServerType = MediaServerType.JELLYFIN;
+  settings.jellyfin.ip = '192.168.87.101';
+  settings.jellyfin.port = 8096;
+
+  const userRepo = getRepository(User);
+  const admin = await userRepo.findOneOrFail({ where: { id: 1 } });
+  admin.jellyfinAuthToken = 'test-token';
+  admin.jellyfinDeviceId = 'test-device-id';
+  await userRepo.save(admin);
+});
+
 async function attachJellyfinUser(email: string, jellyfinUserId: string) {
   const userRepo = getRepository(User);
   const user = await userRepo.findOneOrFail({ where: { email } });
@@ -99,6 +117,41 @@ function moviePayload(overrides: Record<string, unknown> = {}) {
     ProviderIds: { Tmdb: '12345', Tvdb: '999', Imdb: 'tt123' },
     ...overrides,
   };
+}
+
+function episodePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    NotificationType: 'PlaybackStop',
+    UserId: 'jf-user-admin',
+    ItemId: 'jf-ep-1',
+    ItemType: 'Episode',
+    Name: 'Test Episode',
+    PlayedToCompletion: false,
+    Played: false,
+    PlaybackPositionTicks: 36000000000,
+    RunTimeTicks: 72000000000,
+    SeriesId: 'jf-series-1',
+    ...overrides,
+  };
+}
+
+function mockSeriesLookup(
+  seriesId: string,
+  tmdbId: string,
+  options: { played?: boolean } = {}
+) {
+  mock.method(JellyfinAPI.prototype, 'getItemData', async (id: string) => {
+    if (id !== seriesId) {
+      return undefined;
+    }
+    return {
+      Id: seriesId,
+      Name: 'Test Series',
+      Type: 'Series',
+      ProviderIds: { Tmdb: tmdbId },
+      UserData: { Played: options.played ?? false },
+    };
+  });
 }
 
 describe('POST /webhook/jellyfin', () => {
@@ -261,6 +314,163 @@ describe('POST /webhook/jellyfin', () => {
     assert.ok(watchedStatus);
     assert.ok(watchedStatus.watchedAt, 'completed item should set watchedAt');
     assert.strictEqual(watchedStatus.progress, 1);
+  });
+
+  it('creates a watching watchlist entry for a partial episode', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createTvEntry(12345);
+    mockSeriesLookup('jf-series-1', '12345', { played: false });
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 12345,
+        mediaType: MediaType.TV,
+        requestedBy: { id: 1 },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHING);
+    assert.strictEqual(watchlist.media.id, media.id);
+
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-ep-1',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus.progress, 0.5);
+    assert.strictEqual(watchedStatus.watchedAt, null);
+  });
+
+  it('moves a series to watched when the series is fully played per Jellyfin', async () => {
+    const admin = await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createTvEntry(12345);
+
+    await getRepository(Watchlist).save(
+      new Watchlist({
+        tmdbId: 12345,
+        mediaType: MediaType.TV,
+        title: 'Test Series',
+        requestedBy: admin,
+        media,
+        status: WatchlistStatus.WATCHING,
+      })
+    );
+
+    mockSeriesLookup('jf-series-1', '12345', { played: true });
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOneBy({
+      tmdbId: 12345,
+    });
+    assert.strictEqual(watchlist?.status, WatchlistStatus.WATCHED);
+
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-ep-1',
+    });
+    assert.ok(watchedStatus);
+    assert.ok(watchedStatus.watchedAt, 'completed series should set watchedAt');
+  });
+
+  it('creates a watched watchlist entry when the whole series is already played and none exists', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    mockSeriesLookup('jf-series-1', '12345', { played: true });
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 12345,
+        mediaType: MediaType.TV,
+        requestedBy: { id: 1 },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
+  });
+
+  it('does not downgrade an already-watched series via a partial episode', async () => {
+    const admin = await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createTvEntry(12345);
+
+    await getRepository(Watchlist).save(
+      new Watchlist({
+        tmdbId: 12345,
+        mediaType: MediaType.TV,
+        title: 'Test Series',
+        requestedBy: admin,
+        media,
+        status: WatchlistStatus.WATCHED,
+      })
+    );
+
+    mockSeriesLookup('jf-series-1', '12345', { played: false });
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOneBy({
+      tmdbId: 12345,
+    });
+    assert.strictEqual(watchlist?.status, WatchlistStatus.WATCHED);
+  });
+
+  it('ignores an episode webhook with a missing SeriesId', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    await createTvEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload({ SeriesId: undefined }));
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
+  });
+
+  it('ignores an episode webhook when the series has no TMDB id', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    mockSeriesLookup('jf-series-1', '99999', { played: false });
+
+    mock.method(JellyfinAPI.prototype, 'getItemData', async () => ({
+      Id: 'jf-series-1',
+      Name: 'Test Series',
+      Type: 'Series',
+      ProviderIds: {},
+      UserData: { Played: false },
+    }));
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload());
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
   });
 
   it('does not track partial playback for series', async () => {

@@ -3,6 +3,7 @@ import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { WatchlistStatus } from '@server/entity/Watchlist';
 import { syncWatchlistPlaybackState } from '@server/lib/jellyfinWatchedStatus';
+import { buildJellyfinClient } from '@server/lib/jellyfinWatchedSync';
 import logger from '@server/logger';
 import express, { Router } from 'express';
 
@@ -36,6 +37,7 @@ interface JellyfinWebhookPayload {
   PlaybackPositionTicks?: number | string;
   RunTimeTicks?: number | string;
   ProviderIds?: JellyfinWebhookProviderIds;
+  SeriesId?: string;
 }
 
 function parseBoolean(value: boolean | string | undefined | null): boolean {
@@ -102,16 +104,23 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
   }
 
   const isMovie = (payload.ItemType ?? '').toLowerCase() === 'movie';
+  const isEpisode = (payload.ItemType ?? '').toLowerCase() === 'episode';
 
   if (!isCompletion) {
     // Movies: partial playback counts as "watching" once past the minimum
-    // progress threshold. Everything else (series, episodes) still requires a
-    // full completion so a partially-watched episode never flips a series.
+    // progress threshold. Episodes: any playback event is a valid "watching
+    // the show" signal — no per-episode threshold needed.
     if (isMovie && progress >= MINIMUM_WATCH_PROGRESS) {
       logger.info('Recording partial movie playback via Jellyfin webhook', {
         label: 'Jellyfin Webhook',
         itemId: payload.ItemId,
         progress,
+      });
+    } else if (isEpisode) {
+      logger.info('Recording episode playback via Jellyfin webhook', {
+        label: 'Jellyfin Webhook',
+        itemId: payload.ItemId,
+        seriesId: payload.SeriesId,
       });
     } else {
       logger.info(
@@ -166,13 +175,80 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
     return res.status(200).json({ status: 200 });
   }
 
-  const providerTmdb =
-    payload.ProviderIds?.Tmdb ?? payload.ProviderIds?.TheMovieDb;
-  const tmdbId = providerTmdb ? Number(providerTmdb) : null;
-
+  let tmdbId: number | null = null;
   let mediaType = MediaType.MOVIE;
-  if (payload.ItemType?.toLowerCase() === 'series') {
+  let targetStatus = isCompletion
+    ? WatchlistStatus.WATCHED
+    : WatchlistStatus.WATCHING;
+  let watchedAt: Date | undefined = isCompletion ? new Date() : undefined;
+
+  if (isEpisode) {
+    // Episodes: fetch the parent series to get its TMDB id (for watchlist
+    // matching) and aggregate UserData.Played (to know when the whole show
+    // is done).
+    if (!payload.SeriesId) {
+      logger.warn('Ignoring episode webhook: missing SeriesId', {
+        label: 'Jellyfin Webhook',
+        itemId: payload.ItemId,
+      });
+      return res.status(200).json({ status: 200 });
+    }
+
+    const jellyfin = await buildJellyfinClient();
+    if (!jellyfin) {
+      logger.warn(
+        'Ignoring episode webhook: Jellyfin not configured or admin credentials missing',
+        { label: 'Jellyfin Webhook', seriesId: payload.SeriesId }
+      );
+      return res.status(200).json({ status: 200 });
+    }
+
+    let seriesData;
+    try {
+      seriesData = await jellyfin.getItemData(payload.SeriesId);
+    } catch (e) {
+      logger.warn('Ignoring episode webhook: failed to fetch series data', {
+        label: 'Jellyfin Webhook',
+        seriesId: payload.SeriesId,
+        errorMessage: e.message,
+      });
+      return res.status(200).json({ status: 200 });
+    }
+
+    if (!seriesData) {
+      logger.warn('Ignoring episode webhook: series not found in Jellyfin', {
+        label: 'Jellyfin Webhook',
+        seriesId: payload.SeriesId,
+      });
+      return res.status(200).json({ status: 200 });
+    }
+
+    const seriesTmdb =
+      seriesData.ProviderIds?.Tmdb ?? seriesData.ProviderIds?.TheMovieDb;
+    tmdbId = seriesTmdb ? Number(seriesTmdb) : null;
     mediaType = MediaType.TV;
+
+    // Use the series-level aggregate: if all available episodes are played,
+    // the show is done. Otherwise any episode playback = watching.
+    const seriesPlayed = seriesData.UserData?.Played === true;
+    targetStatus = seriesPlayed
+      ? WatchlistStatus.WATCHED
+      : WatchlistStatus.WATCHING;
+    watchedAt = seriesPlayed ? new Date() : undefined;
+
+    logger.info('Processed episode webhook against series aggregate', {
+      label: 'Jellyfin Webhook',
+      itemId: payload.ItemId,
+      seriesId: payload.SeriesId,
+      seriesTmdbId: tmdbId,
+      seriesPlayed,
+      targetStatus,
+    });
+  } else {
+    // Movies: use the TMDB id from the webhook payload directly.
+    const providerTmdb =
+      payload.ProviderIds?.Tmdb ?? payload.ProviderIds?.TheMovieDb;
+    tmdbId = providerTmdb ? Number(providerTmdb) : null;
   }
 
   try {
@@ -182,11 +258,9 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
       tmdbId,
       mediaType,
       title: payload.Name,
-      targetStatus: isCompletion
-        ? WatchlistStatus.WATCHED
-        : WatchlistStatus.WATCHING,
+      targetStatus,
       progress,
-      watchedAt: isCompletion ? new Date() : undefined,
+      watchedAt,
     });
   } catch (e) {
     logger.error('Failed to process Jellyfin webhook notification', {
