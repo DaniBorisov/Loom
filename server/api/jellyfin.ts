@@ -116,6 +116,15 @@ export interface JellyfinMediaSource {
   MediaStreams: JellyfinMediaStream[];
 }
 
+export interface JellyfinUserData {
+  PlaybackPositionTicks?: number;
+  RunTimeTicks?: number;
+  PlayCount?: number;
+  IsFavorite?: boolean;
+  Played?: boolean;
+  PlayedPercentage?: number;
+}
+
 export interface JellyfinLibraryItemExtended extends JellyfinLibraryItem {
   ProviderIds: {
     Tmdb?: string;
@@ -125,6 +134,8 @@ export interface JellyfinLibraryItemExtended extends JellyfinLibraryItem {
     AniDB?: string;
   };
   MediaSources?: JellyfinMediaSource[];
+  UserData?: JellyfinUserData;
+  RunTimeTicks?: number;
   Width?: number;
   Height?: number;
   IsHD?: boolean;
@@ -587,6 +598,59 @@ class JellyfinAPI extends ExternalAPI {
     } catch (e) {
       logger.error(
         `Something went wrong while fetching played items from the Jellyfin server: ${e.message}`,
+        { label: 'Jellyfin API', error: e?.response?.status }
+      );
+
+      if (!e.response) {
+        throw new ApiError(502, ApiErrorCode.ConnectionError);
+      }
+
+      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+    }
+  }
+
+  /**
+   * Fetches every item the user has started but not finished (resumable).
+   * Used by the fallback poller so partial-progress movies land in the
+   * watchlist as "watching" even when the webhook was missed.
+   */
+  public async getInProgressItems(): Promise<JellyfinLibraryItemExtended[]> {
+    const items: JellyfinLibraryItemExtended[] = [];
+    let startIndex = 0;
+
+    try {
+      for (;;) {
+        const response = await this.get<JellyfinItemsReponse>(
+          `/Users/${this.userId ?? 'Me'}/Items/Resume`,
+          {
+            params: {
+              Recursive: true,
+              Filters: 'IsResumable',
+              Fields: 'ProviderIds,UserData',
+              IncludeItemTypes: 'Movie,Series',
+              StartIndex: startIndex,
+              Limit: 500,
+            },
+          },
+          300
+        );
+
+        const page = response.Items ?? [];
+        items.push(...page);
+
+        if (
+          !page.length ||
+          startIndex + page.length >= (response.TotalRecordCount ?? startIndex)
+        ) {
+          break;
+        }
+        startIndex += page.length;
+      }
+
+      return items;
+    } catch (e) {
+      logger.error(
+        `Something went wrong while fetching in-progress items from the Jellyfin server: ${e.message}`,
         { label: 'Jellyfin API', error: e?.response?.status }
       );
 

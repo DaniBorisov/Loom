@@ -23,6 +23,8 @@ beforeEach(async () => {
   settings.jellyfin.ip = '192.168.87.101';
   settings.jellyfin.port = 8096;
 
+  mock.method(JellyfinAPI.prototype, 'getInProgressItems', async () => []);
+
   const userRepo = getRepository(User);
   const admin = await userRepo.findOneOrFail({ where: { id: 1 } });
   admin.jellyfinAuthToken = 'test-token';
@@ -37,6 +39,22 @@ function playedMovie(id: string, tmdbId: string) {
     Name: `Item ${id}`,
     Type: 'Movie',
     ProviderIds: { Tmdb: tmdbId },
+  };
+}
+
+function inProgressMovie(
+  id: string,
+  tmdbId: string,
+  positionTicks: number,
+  runtimeTicks: number
+) {
+  return {
+    Id: id,
+    Name: `Item ${id}`,
+    Type: 'Movie',
+    ProviderIds: { Tmdb: tmdbId },
+    RunTimeTicks: runtimeTicks,
+    UserData: { PlaybackPositionTicks: positionTicks, Played: false },
   };
 }
 
@@ -220,6 +238,82 @@ describe('syncPlayedItems (fallback Jellyfin watched sync)', () => {
       id: watchlist.id,
     });
     assert.strictEqual(updated?.status, WatchlistStatus.WATCHED);
+  });
+
+  it('creates a watching watchlist entry for an in-progress item', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => []);
+    mock.method(JellyfinAPI.prototype, 'getInProgressItems', async () => [
+      inProgressMovie('jf-inprogress', '55555', 36000000000, 72000000000),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.inProgress, 1);
+    assert.strictEqual(result.recorded, 1);
+    assert.strictEqual(result.skipped, 0);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 55555,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: user.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHING);
+
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-inprogress',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus.progress, 0.5);
+    assert.strictEqual(watchedStatus.watchedAt, null);
+  });
+
+  it('does not downgrade a played item that is also in progress', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+    await ensureMedia(11111);
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => [
+      playedMovie('jf-both', '11111'),
+    ]);
+    mock.method(JellyfinAPI.prototype, 'getInProgressItems', async () => [
+      inProgressMovie('jf-both', '11111', 36000000000, 72000000000),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.inProgress, 0);
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 11111,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: user.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
+  });
+
+  it('ignores in-progress items below the minimum progress threshold', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => []);
+    mock.method(JellyfinAPI.prototype, 'getInProgressItems', async () => [
+      inProgressMovie('jf-low', '66666', 1800000000, 72000000000),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.inProgress, 0);
+    assert.strictEqual(result.recorded, 0);
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: { tmdbId: 66666 },
+    });
+    assert.strictEqual(watchlist, null);
   });
 
   it('handles a Jellyfin API failure gracefully without crashing', async () => {
