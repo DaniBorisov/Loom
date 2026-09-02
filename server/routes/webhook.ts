@@ -1,11 +1,18 @@
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
-import { markItemWatched } from '@server/lib/jellyfinWatchedStatus';
+import { WatchlistStatus } from '@server/entity/Watchlist';
+import { syncWatchlistPlaybackState } from '@server/lib/jellyfinWatchedStatus';
 import logger from '@server/logger';
 import express, { Router } from 'express';
 
 const webhookRoutes = Router();
+
+/**
+ * Minimum progress for a partial movie playback to count as "watching".
+ * Events below this (e.g. accidental click-and-immediately-stop) are ignored.
+ */
+const MINIMUM_WATCH_PROGRESS = 0.05;
 
 /**
  * The Jellyfin Webhook plugin does not always send an application/json
@@ -26,6 +33,8 @@ interface JellyfinWebhookPayload {
   Name?: string;
   PlayedToCompletion?: boolean | string;
   Played?: boolean | string;
+  PlaybackPositionTicks?: number | string;
+  RunTimeTicks?: number | string;
   ProviderIds?: JellyfinWebhookProviderIds;
 }
 
@@ -71,17 +80,52 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
     return res.status(200).json({ status: 200 });
   }
 
+  const playedToCompletion = parseBoolean(payload.PlayedToCompletion);
+  const played = parseBoolean(payload.Played);
+  const isCompletion = playedToCompletion || played;
+
+  let progress = 1;
   if (
-    !parseBoolean(payload.PlayedToCompletion) &&
-    !parseBoolean(payload.Played)
+    payload.PlaybackPositionTicks !== undefined &&
+    payload.RunTimeTicks !== undefined
   ) {
-    logger.info('Ignoring Jellyfin PlaybackStop: not played to completion', {
-      label: 'Jellyfin Webhook',
-      itemId: payload.ItemId,
-      playedToCompletion: payload.PlayedToCompletion,
-      played: payload.Played,
-    });
-    return res.status(200).json({ status: 200 });
+    const position = Number(payload.PlaybackPositionTicks);
+    const runtime = Number(payload.RunTimeTicks);
+    if (
+      Number.isFinite(position) &&
+      Number.isFinite(runtime) &&
+      runtime > 0 &&
+      position >= 0
+    ) {
+      progress = Math.min(position / runtime, 1);
+    }
+  }
+
+  const isMovie = (payload.ItemType ?? '').toLowerCase() === 'movie';
+
+  if (!isCompletion) {
+    // Movies: partial playback counts as "watching" once past the minimum
+    // progress threshold. Everything else (series, episodes) still requires a
+    // full completion so a partially-watched episode never flips a series.
+    if (isMovie && progress >= MINIMUM_WATCH_PROGRESS) {
+      logger.info('Recording partial movie playback via Jellyfin webhook', {
+        label: 'Jellyfin Webhook',
+        itemId: payload.ItemId,
+        progress,
+      });
+    } else {
+      logger.info(
+        'Ignoring Jellyfin PlaybackStop: not played to completion or not enough progress',
+        {
+          label: 'Jellyfin Webhook',
+          itemId: payload.ItemId,
+          playedToCompletion: payload.PlayedToCompletion,
+          played: payload.Played,
+          progress,
+        }
+      );
+      return res.status(200).json({ status: 200 });
+    }
   }
 
   if (!payload.UserId || !payload.ItemId) {
@@ -132,12 +176,17 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
   }
 
   try {
-    await markItemWatched({
+    await syncWatchlistPlaybackState({
       user,
       jellyfinItemId: payload.ItemId,
       tmdbId,
       mediaType,
       title: payload.Name,
+      targetStatus: isCompletion
+        ? WatchlistStatus.WATCHED
+        : WatchlistStatus.WATCHING,
+      progress,
+      watchedAt: isCompletion ? new Date() : undefined,
     });
   } catch (e) {
     logger.error('Failed to process Jellyfin webhook notification', {

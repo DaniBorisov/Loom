@@ -9,11 +9,11 @@ import logger from '@server/logger';
 import { QueryFailedError, type FindOptionsWhere } from 'typeorm';
 
 /**
- * Result of attempting to record a watched state for a Jellyfin item and
+ * Result of attempting to record a playback state for a Jellyfin item and
  * reflect it in the user's watchlist.
- * - 'watchlist-created': recorded AND a new watchlist entry was added (watched)
- * - 'watchlist-updated': recorded AND the user's existing watchlist entry was moved to watched
- * - 'recorded-only': recorded in WatchedStatus, and a matching watchlist entry already exists as watched
+ * - 'watchlist-created': recorded AND a new watchlist entry was added with the target status
+ * - 'watchlist-updated': recorded AND the user's existing watchlist entry was moved to the target status
+ * - 'recorded-only': recorded in WatchedStatus, and a matching watchlist entry already matches the target status
  * - 'skipped': nothing was recorded (no TMDB id)
  */
 export type MarkItemWatchedResult =
@@ -22,10 +22,11 @@ export type MarkItemWatchedResult =
   | 'recorded-only'
   | 'skipped';
 
-interface MarkItemWatchedOptions {
+interface SyncPlaybackStateOptions {
   user: User;
   jellyfinItemId: string;
   tmdbId: number | null | undefined;
+  targetStatus: WatchlistStatus;
   mediaType?: MediaType;
   title?: string;
   watchedAt?: Date;
@@ -33,25 +34,29 @@ interface MarkItemWatchedOptions {
 }
 
 /**
- * Records that a user watched a Jellyfin item and makes sure their watchlist
- * reflects it: the matching entry is moved to watched, or a new watched entry
- * is created when none exists. Shared between the Jellyfin webhook receiver
- * and the scheduled fallback sync job.
+ * Records a user's playback state for a Jellyfin item and makes sure their
+ * watchlist reflects it: the matching entry is moved to the target status, or
+ * a new entry is created with that status when none exists. Shared between the
+ * Jellyfin webhook receiver and the scheduled fallback sync job.
  *
  * A missing local Media record is created on the fly so any item Jellyfin
- * reports as watched can appear in the watchlist.
+ * reports a playback state for can appear in the watchlist.
+ *
+ * Downgrading is never allowed: an item already WATCHED is never moved back to
+ * WATCHING (or anything else) by a later partial-progress event.
  */
-export async function markItemWatched({
+export async function syncWatchlistPlaybackState({
   user,
   jellyfinItemId,
   tmdbId,
+  targetStatus,
   mediaType = MediaType.MOVIE,
   title,
-  watchedAt = new Date(),
+  watchedAt,
   progress = 1,
-}: MarkItemWatchedOptions): Promise<MarkItemWatchedResult> {
+}: SyncPlaybackStateOptions): Promise<MarkItemWatchedResult> {
   if (!tmdbId) {
-    logger.debug('Skipping watched sync: no TMDB identifier', {
+    logger.debug('Skipping watchlist playback sync: no TMDB identifier', {
       label: 'Jellyfin Watched Sync',
       userId: user.id,
       jellyfinItemId,
@@ -67,7 +72,7 @@ export async function markItemWatched({
   if (!media) {
     media = new Media({ tmdbId, mediaType });
     await mediaRepository.save(media);
-    logger.debug('Created local media record from Jellyfin watched item', {
+    logger.debug('Created local media record from Jellyfin playback item', {
       label: 'Jellyfin Watched Sync',
       userId: user.id,
       jellyfinItemId,
@@ -81,10 +86,14 @@ export async function markItemWatched({
     where: { userId: user.id, jellyfinItemId },
   });
 
+  // Partial playback leaves watchedAt null so a later completion still
+  // records the real finish time. Once a completion is recorded (progress 1
+  // and watchedAt set), nothing is re-written on subsequent runs.
+  const isCompletion = targetStatus === WatchlistStatus.WATCHED;
   if (
     !watchedStatus ||
     watchedStatus.progress < progress ||
-    !watchedStatus.watchedAt
+    (isCompletion && !watchedStatus.watchedAt)
   ) {
     const next =
       watchedStatus ??
@@ -95,35 +104,38 @@ export async function markItemWatched({
         mediaId: media.id,
         progress: 0,
       });
-    next.watchedAt = watchedAt;
+    next.watchedAt = watchedAt ?? null;
     next.progress = progress;
     await watchedStatusRepository.save(next);
   }
 
-  const watchedOnWatchlist = await ensureWatchedWatchlistEntry({
+  const watchlistResult = await ensureWatchlistEntry({
     user,
     media,
     tmdbId,
     mediaType,
     title,
+    targetStatus,
   });
 
-  if (watchedOnWatchlist === 'created') {
-    logger.info('Created watchlist item as watched via Jellyfin', {
+  if (watchlistResult === 'created') {
+    logger.info('Created watchlist item via Jellyfin playback', {
       label: 'Jellyfin Watched Sync',
       userId: user.id,
       tmdbId,
       mediaType,
+      targetStatus,
     });
     return 'watchlist-created';
   }
 
-  if (watchedOnWatchlist === 'updated') {
-    logger.info('Marked watchlist item as watched via Jellyfin', {
+  if (watchlistResult === 'updated') {
+    logger.info('Moved watchlist item via Jellyfin playback', {
       label: 'Jellyfin Watched Sync',
       userId: user.id,
       tmdbId,
       mediaType,
+      targetStatus,
     });
     return 'watchlist-updated';
   }
@@ -132,22 +144,40 @@ export async function markItemWatched({
 }
 
 /**
- * Ensures a watchlist entry for the given item exists with a watched status,
- * creating it when there is none. Returns 'created', 'updated' or 'noop'.
+ * Ensures a watchlist entry for the given item exists with the target status,
+ * creating it when there is none. An entry already WATCHED is never downgraded
+ * to a lesser status. Returns 'created', 'updated' or 'noop'.
  */
-async function ensureWatchedWatchlistEntry({
+async function ensureWatchlistEntry({
   user,
   media,
   tmdbId,
   mediaType,
   title,
+  targetStatus,
 }: {
   user: User;
   media: Media;
   tmdbId: number;
   mediaType: MediaType;
   title?: string;
+  targetStatus: WatchlistStatus;
 }): Promise<'created' | 'updated' | 'noop'> {
+  const applyTarget = (entry: Watchlist): boolean => {
+    // Downgrade guard: once watched, partial progress never moves it back.
+    if (
+      entry.status === WatchlistStatus.WATCHED &&
+      targetStatus !== WatchlistStatus.WATCHED
+    ) {
+      return false;
+    }
+    if (entry.status === targetStatus) {
+      return false;
+    }
+    entry.status = transitionStatus(entry.status, targetStatus);
+    return true;
+  };
+
   const watchlistRepository = getRepository(Watchlist);
   const where: FindOptionsWhere<Watchlist> | FindOptionsWhere<Watchlist>[] =
     mediaType === MediaType.MOVIE
@@ -169,11 +199,7 @@ async function ensureWatchedWatchlistEntry({
   let watchlist = await findExisting();
 
   if (watchlist) {
-    if (watchlist.status !== WatchlistStatus.WATCHED) {
-      watchlist.status = transitionStatus(
-        watchlist.status,
-        WatchlistStatus.WATCHED
-      );
+    if (applyTarget(watchlist)) {
       await watchlistRepository.save(watchlist);
       return 'updated';
     }
@@ -186,7 +212,7 @@ async function ensureWatchedWatchlistEntry({
     title: title ?? '',
     requestedBy: user,
     media,
-    status: WatchlistStatus.WATCHED,
+    status: targetStatus,
   });
 
   try {
@@ -200,11 +226,7 @@ async function ensureWatchedWatchlistEntry({
     // (tmdbId, mediaType, requestedBy) means one of them loses. Re-find and
     // fall back to the existing entry instead of failing the whole job.
     watchlist = await findExisting();
-    if (watchlist && watchlist.status !== WatchlistStatus.WATCHED) {
-      watchlist.status = transitionStatus(
-        watchlist.status,
-        WatchlistStatus.WATCHED
-      );
+    if (watchlist && applyTarget(watchlist)) {
       await watchlistRepository.save(watchlist);
       return 'updated';
     }

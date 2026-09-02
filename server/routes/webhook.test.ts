@@ -75,6 +75,18 @@ async function createMovieEntry(tmdbId: number) {
   return media;
 }
 
+async function createTvEntry(tmdbId: number) {
+  const mediaRepository = getRepository(Media);
+  let media = await mediaRepository.findOne({
+    where: { tmdbId, mediaType: MediaType.TV },
+  });
+  if (!media) {
+    media = new Media({ tmdbId, mediaType: MediaType.TV });
+    await mediaRepository.save(media);
+  }
+  return media;
+}
+
 function moviePayload(overrides: Record<string, unknown> = {}) {
   return {
     NotificationType: 'PlaybackStop',
@@ -119,7 +131,45 @@ describe('POST /webhook/jellyfin', () => {
     assert.strictEqual(watchedCount, 0);
   });
 
-  it('ignores PlaybackStop events where the item was not watched', async () => {
+  it('creates a watching watchlist entry for partial movie playback', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(
+        moviePayload({
+          PlayedToCompletion: false,
+          Played: false,
+          PlaybackPositionTicks: 36000000000, // ~60 min of a 120 min movie
+          RunTimeTicks: 72000000000,
+        })
+      );
+
+    assert.strictEqual(res.status, 200);
+
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-item-1',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus.progress, 0.5);
+    assert.strictEqual(watchedStatus.watchedAt, null);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 12345,
+        mediaType: MediaType.MOVIE,
+        requestedBy: { id: 1 },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHING);
+    assert.strictEqual(watchlist.media.id, media.id);
+  });
+
+  it('ignores movie playback below the minimum progress threshold', async () => {
     await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
     await createMovieEntry(12345);
 
@@ -130,6 +180,103 @@ describe('POST /webhook/jellyfin', () => {
         moviePayload({
           PlayedToCompletion: false,
           Played: false,
+          PlaybackPositionTicks: 1800000000, // 3 min of a 120 min movie
+          RunTimeTicks: 72000000000,
+        })
+      );
+
+    assert.strictEqual(res.status, 200);
+    const watchedCount = await getRepository(WatchedStatus).count();
+    assert.strictEqual(watchedCount, 0);
+    const watchlistCount = await getRepository(Watchlist).count();
+    assert.strictEqual(watchlistCount, 0);
+  });
+
+  it('does not downgrade an already-watched movie via partial playback', async () => {
+    const admin = await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    await getRepository(Watchlist).save(
+      new Watchlist({
+        tmdbId: 12345,
+        mediaType: MediaType.MOVIE,
+        title: 'Test Movie',
+        requestedBy: admin,
+        media,
+        status: WatchlistStatus.WATCHED,
+      })
+    );
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(
+        moviePayload({
+          PlayedToCompletion: false,
+          Played: false,
+          PlaybackPositionTicks: 36000000000,
+          RunTimeTicks: 72000000000,
+        })
+      );
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOneBy({
+      tmdbId: 12345,
+    });
+    assert.strictEqual(watchlist?.status, WatchlistStatus.WATCHED);
+  });
+
+  it('moves an in-progress movie to watched once played to completion', async () => {
+    const admin = await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    const media = await createMovieEntry(12345);
+
+    await getRepository(Watchlist).save(
+      new Watchlist({
+        tmdbId: 12345,
+        mediaType: MediaType.MOVIE,
+        title: 'Test Movie',
+        requestedBy: admin,
+        media,
+        status: WatchlistStatus.WATCHING,
+      })
+    );
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(moviePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOneBy({
+      tmdbId: 12345,
+    });
+    assert.strictEqual(watchlist?.status, WatchlistStatus.WATCHED);
+
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-item-1',
+    });
+    assert.ok(watchedStatus);
+    assert.ok(watchedStatus.watchedAt, 'completed item should set watchedAt');
+    assert.strictEqual(watchedStatus.progress, 1);
+  });
+
+  it('does not track partial playback for series', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    await createTvEntry(12345);
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(
+        moviePayload({
+          ItemType: 'Series',
+          PlayedToCompletion: false,
+          Played: false,
+          PlaybackPositionTicks: 36000000000,
+          RunTimeTicks: 72000000000,
         })
       );
 
