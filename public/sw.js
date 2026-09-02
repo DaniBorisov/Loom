@@ -1,75 +1,86 @@
 /* eslint-disable no-undef */
-// Incrementing OFFLINE_VERSION will kick off the install event and force
-// previously cached resources to be updated from the network.
-// This variable is intentionally declared and unused.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const OFFLINE_VERSION = 5;
-const CACHE_NAME = 'offline';
-// Customize this with a different URL if needed.
-const OFFLINE_URL = '/offline.html';
+// Hand-rolled Workbox setup (no next-pwa build step). Loads Workbox's runtime
+// modules from the official Google-hosted CDN. The browser caches the imported
+// script after the first (online) visit, so the service worker keeps working
+// while offline afterward.
+importScripts(
+  'https://storage.googleapis.com/workbox-cdn/releases/7.4.1/workbox-sw.js'
+);
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      // Setting {cache: 'reload'} in the new request will ensure that the
-      // response isn't fulfilled from the HTTP cache; i.e., it will be from
-      // the network.
-      await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
-    })()
-  );
-  // Force the waiting service worker to become the active service worker.
+const { registerRoute } = workbox.routing;
+const { CacheFirst, NetworkFirst, NetworkOnly, StaleWhileRevalidate } =
+  workbox.strategies;
+
+// App shell: hashed Next.js build assets (JS/CSS) are immutable, so serve them
+// stale-while-revalidate after the first visit (fast reads, background refresh).
+// Fonts are cached the same way.
+registerRoute(
+  ({ request }) =>
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'font' ||
+    request.destination === 'worker',
+  new StaleWhileRevalidate({
+    cacheName: 'app-shell',
+  })
+);
+
+// API responses must NOT be cached offline-first: stale watchlist/request data
+// would be actively misleading. Registered BEFORE the same-origin static route
+// below so API fetches are never captured by the cache-first handler.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkOnly()
+);
+
+// Other same-origin static assets (e.g. images) cached cache-first so the shell
+// doesn't blank out offline. Images are non-essential, so this is best-effort.
+// Explicitly excludes navigations (handled network-first below) so pages are
+// never served stale from cache.
+registerRoute(
+  ({ request, url }) =>
+    request.destination !== 'document' && url.origin === self.location.origin,
+  new CacheFirst({
+    cacheName: 'app-shell',
+  })
+);
+
+// Navigations: network-first so users get the latest shell, with the offline
+// page as a graceful fallback when the network is unavailable.
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'pages',
+    networkTimeoutSeconds: 3,
+  })
+);
+
+// Offline fallback page. This precaches /offline.html and serves it instead of a
+// navigation only when both the network and the navigation cache miss, so users
+// never get a blank screen while offline.
+workbox.recipes.offlineFallback({
+  pageFallback: '/offline.html',
+});
+
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      // Enable navigation preload if it's supported.
-      // See https://developers.google.com/web/updates/2017/02/navigation-preload
       if ('navigationPreload' in self.registration) {
         await self.registration.navigationPreload.enable();
       }
+      await self.clients.claim();
     })()
   );
-
-  // Tell the active service worker to take control of the page immediately.
-  clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  // We only want to call event.respondWith() if this is a navigation request
-  // for an HTML page.
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        try {
-          // First, try to use the navigation preload response if it's supported.
-          const preloadResponse = await event.preloadResponse;
-          if (preloadResponse) {
-            return preloadResponse;
-          }
-
-          // Always try the network first.
-          const networkResponse = await fetch(event.request);
-          return networkResponse;
-        } catch (error) {
-          // catch is only triggered if an exception is thrown, which is likely
-          // due to a network error.
-          // If fetch() returns a valid HTTP response with a response code in
-          // the 4xx or 5xx range, the catch() will NOT be called.
-          // eslint-disable-next-line no-console
-          console.log('Fetch failed; returning offline page instead.', error);
-
-          const cache = await caches.open(CACHE_NAME);
-          const cachedResponse = await cache.match(OFFLINE_URL);
-          return cachedResponse;
-        }
-      })()
-    );
-  }
-});
-
+// ---------------------------------------------------------------------------
+// Notifications (push / notificationclick). Epic 7 extends the messages handled
+// here, so keep this section isolated and easy to extend.
+// ---------------------------------------------------------------------------
 self.addEventListener('push', (event) => {
   const payload = event.data ? event.data.json() : {};
 
@@ -107,8 +118,6 @@ self.addEventListener('push', (event) => {
     );
   }
 
-  // Set the badge with the amount of pending requests
-  // Only update the badge if the payload confirms they are the admin
   if (
     (payload.notificationType === 'MEDIA_APPROVED' ||
       payload.notificationType === 'MEDIA_DECLINED') &&
