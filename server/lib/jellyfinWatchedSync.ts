@@ -218,7 +218,7 @@ export async function syncPlayedItems(
  * Builds a Jellyfin API client using the admin's credentials so the job can
  * read the library of any linked user.
  */
-async function buildJellyfinClient(): Promise<JellyfinAPI | null> {
+export async function buildJellyfinClient(): Promise<JellyfinAPI | null> {
   const settings = getSettings();
   const hostname = getHostname(settings.jellyfin);
 

@@ -669,7 +669,8 @@ class JellyfinAPI extends ExternalAPI {
       const itemResponse = await this.get<JellyfinItemsReponse>(`/Items`, {
         params: {
           ids: id,
-          fields: 'ProviderIds,MediaSources,Width,Height,IsHD,DateCreated',
+          fields:
+            'ProviderIds,MediaSources,Width,Height,IsHD,DateCreated,UserData',
         },
       });
 

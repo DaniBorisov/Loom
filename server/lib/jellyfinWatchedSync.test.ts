@@ -71,6 +71,22 @@ function playedSeries(
   };
 }
 
+function inProgressSeries(
+  id: string,
+  tmdbId: string,
+  positionTicks: number,
+  runtimeTicks: number
+) {
+  return {
+    Id: id,
+    Name: `Series ${id}`,
+    Type: 'Series',
+    ProviderIds: { Tmdb: tmdbId },
+    RunTimeTicks: runtimeTicks,
+    UserData: { PlaybackPositionTicks: positionTicks, Played: false },
+  };
+}
+
 async function ensureMedia(
   tmdbId: number,
   mediaType: MediaType = MediaType.MOVIE
@@ -314,6 +330,66 @@ describe('syncPlayedItems (fallback Jellyfin watched sync)', () => {
       where: { tmdbId: 66666 },
     });
     assert.strictEqual(watchlist, null);
+  });
+
+  it('creates a watching watchlist entry for an in-progress series', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => []);
+    mock.method(JellyfinAPI.prototype, 'getInProgressItems', async () => [
+      inProgressSeries(
+        'jf-series-inprogress',
+        '77777',
+        36000000000,
+        72000000000
+      ),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.inProgress, 1);
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 77777,
+        mediaType: MediaType.TV,
+        requestedBy: { id: user.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHING);
+
+    const watchedStatus = await getRepository(WatchedStatus).findOneBy({
+      userId: 1,
+      jellyfinItemId: 'jf-series-inprogress',
+    });
+    assert.ok(watchedStatus);
+    assert.strictEqual(watchedStatus.progress, 0.5);
+    assert.strictEqual(watchedStatus.watchedAt, null);
+  });
+
+  it('does not downgrade a played series that is also in progress', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+    await ensureMedia(22222, MediaType.TV);
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => [
+      playedSeries('jf-series-both', '22222'),
+    ]);
+    mock.method(JellyfinAPI.prototype, 'getInProgressItems', async () => [
+      inProgressSeries('jf-series-both', '22222', 36000000000, 72000000000),
+    ]);
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.inProgress, 0);
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 22222,
+        mediaType: MediaType.TV,
+        requestedBy: { id: user.id },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
   });
 
   it('handles a Jellyfin API failure gracefully without crashing', async () => {
