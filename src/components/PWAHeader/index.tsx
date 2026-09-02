@@ -156,11 +156,7 @@ const PWAHeader = ({ applicationTitle = 'Seerr' }: PWAHeaderProps) => {
         name="apple-mobile-web-app-status-bar-style"
         content="black-translucent"
       />
-      <link
-        rel="manifest"
-        href="/site.webmanifest"
-        crossOrigin="use-credentials"
-      />
+      <link rel="manifest" href="/site.webmanifest" />
       <meta name="apple-mobile-web-app-title" content={applicationTitle} />
       <meta
         name="description"
