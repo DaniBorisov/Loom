@@ -143,4 +143,28 @@ describe('StatusChecker connection-lost banner', () => {
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('polls every 10s normally and every 5s while the connection is down', async () => {
+    const { rerender } = renderChecker();
+    const rerenderChecker = () =>
+      rerender(
+        <IntlProvider locale="en" defaultLocale="en">
+          <StatusChecker />
+        </IntlProvider>
+      );
+
+    expect(mockedUseSWR.mock.calls[0][1].refreshInterval).toBe(10 * 1000);
+
+    mockedUseSWR.mockReturnValue({ data: healthy, error: new Error('down 1') });
+    rerenderChecker();
+    mockedUseSWR.mockReturnValue({ data: healthy, error: new Error('down 2') });
+    rerenderChecker();
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    const lastCall =
+      mockedUseSWR.mock.calls[mockedUseSWR.mock.calls.length - 1];
+    expect(lastCall[1].refreshInterval).toBe(5 * 1000);
+  });
 });
