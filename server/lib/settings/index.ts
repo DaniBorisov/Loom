@@ -1,6 +1,7 @@
 import { MediaServerType } from '@server/constants/server';
 import { Permission } from '@server/lib/permissions';
 import { runMigrations } from '@server/lib/settings/migrator';
+import { resolveVapidKeys } from '@server/lib/settings/vapid';
 import type { AvailableLocale } from '@server/types/languages';
 import { randomBytes, randomUUID } from 'crypto';
 import fs from 'fs/promises';
@@ -873,10 +874,19 @@ class Settings {
       this.data.sessionSecret = randomBytes(32).toString('hex');
       change = true;
     }
-    if (!this.data.vapidPublic || !this.data.vapidPrivate) {
-      const vapidKeys = webpush.generateVAPIDKeys();
-      this.data.vapidPrivate = vapidKeys.privateKey;
-      this.data.vapidPublic = vapidKeys.publicKey;
+    // VAPID keys (DAN-43): env pair wins when fully set, otherwise the
+    // stored pair, otherwise generate + persist. See resolveVapidKeys docs
+    // for precedence and rotation consequences.
+    const vapid = resolveVapidKeys({
+      storedPublic: this.data.vapidPublic,
+      storedPrivate: this.data.vapidPrivate,
+      envPublic: process.env.VAPID_PUBLIC_KEY,
+      envPrivate: process.env.VAPID_PRIVATE_KEY,
+      generate: () => webpush.generateVAPIDKeys(),
+    });
+    this.data.vapidPublic = vapid.publicKey;
+    this.data.vapidPrivate = vapid.privateKey;
+    if (vapid.changed) {
       change = true;
     }
     if (change) {
