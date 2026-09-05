@@ -187,6 +187,10 @@ class JellyfinAPI extends ExternalAPI {
           Accept: 'application/json',
         },
         nodeCache: cacheManager.getCache('jellyfin').data,
+        // Explicit timeout (belt-and-suspenders over the ExternalAPI
+        // default): without one, an unreachable Jellyfin hangs requests —
+        // and the jobs awaiting them — indefinitely (DAN-92).
+        timeout: settings.network.apiRequestTimeout,
       }
     );
 

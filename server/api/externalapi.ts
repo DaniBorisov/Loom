@@ -10,6 +10,13 @@ const DEFAULT_TTL = 300;
 // 10 seconds default rolling buffer (in ms)
 const DEFAULT_ROLLING_BUFFER = 10000;
 
+/**
+ * Safe-by-default request timeout (in ms) for every ExternalAPI subclass.
+ * axios treats `timeout: 0`/undefined as "no timeout", which lets a single
+ * unreachable host hang requests (and the jobs awaiting them) indefinitely.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 10000;
+
 export interface ExternalAPIOptions {
   nodeCache?: NodeCache;
   headers?: Record<string, unknown>;
@@ -19,6 +26,22 @@ export interface ExternalAPIOptions {
     maxRequests: number;
   };
 }
+
+/**
+ * True when the error is an axios request timeout (ECONNABORTED / "timeout
+ * of Nms exceeded"), as opposed to a refusal, DNS failure, or HTTP error.
+ * Used to log timeouts distinctly so outage debugging is faster.
+ */
+export const isRequestTimeoutError = (e: unknown): boolean => {
+  const code = (e as { code?: unknown })?.code;
+  if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+    return true;
+  }
+  const message = (e as { message?: unknown })?.message;
+  return (
+    typeof message === 'string' && /timeout of \d+ms exceeded/.test(message)
+  );
+};
 
 class ExternalAPI {
   protected axios: AxiosInstance;
@@ -33,7 +56,7 @@ class ExternalAPI {
     this.axios = axios.create({
       baseURL: baseUrl,
       params,
-      timeout: options.timeout,
+      timeout: options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
