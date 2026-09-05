@@ -15,6 +15,7 @@ import type {
 } from '@server/interfaces/api/mediaInterfaces';
 import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
+import cacheManager from '@server/lib/cache';
 import logger from '@server/logger';
 import { isAuthenticated } from '@server/middleware/auth';
 import { getHostname } from '@server/utils/getHostname';
@@ -23,6 +24,16 @@ import type { FindOneOptions } from 'typeorm';
 import { EntityNotFoundError, In, IsNull, Not } from 'typeorm';
 
 const mediaRoutes = Router();
+
+/**
+ * Circuit-breaker flag for the jellyfin-check route (DAN-97). Stored in the
+ * shared Jellyfin NodeCache (URL-serialized response keys can never collide
+ * with this fixed key). Cooldown is deliberately short: just long enough to
+ * stop every card re-paying the 10s timeout during an outage, short enough
+ * that recovery is picked up quickly.
+ */
+export const JELLYFIN_UNREACHABLE_KEY = 'jellyfin:unreachable';
+export const JELLYFIN_UNREACHABLE_TTL_SECONDS = 45;
 
 mediaRoutes.get('/', async (req, res, next) => {
   const mediaRepository = getRepository(Media);
@@ -429,6 +440,20 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
     const includeItemTypes =
       mediaType === 'tv' ? 'Series' : mediaType === 'movie' ? 'Movie' : 'Movie,Series';
 
+    // Circuit breaker (DAN-97): every rendered card hits this route, and
+    // during an outage each one would otherwise re-pay the full 10s request
+    // timeout. After the first failure, short-circuit to { available: false }
+    // until the cooldown lapses; the next real probe then either clears the
+    // flag (recovered) or re-arms it (still down).
+    const jellyfinCache = cacheManager.getCache('jellyfin').data;
+    if (jellyfinCache.get<boolean>(JELLYFIN_UNREACHABLE_KEY)) {
+      logger.debug(
+        `Skipping Jellyfin availability check (circuit breaker open): tmdbId=${tmdbId}`,
+        { label: 'Media' }
+      );
+      return res.status(200).json({ available: false });
+    }
+
     try {
       const userRepository = getRepository(User);
       const admin = await userRepository.findOne({
@@ -459,6 +484,10 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
         includeItemTypes
       );
 
+      // A successful lookup proves the server is back — clear the breaker so
+      // subsequent checks go through normally again.
+      jellyfinCache.del(JELLYFIN_UNREACHABLE_KEY);
+
       logger.info(
         `Jellyfin availability check: tmdbId=${tmdbId} type=${mediaType ?? 'any'} found=${!!item}` +
           (item ? ` name="${item.Name}"` : ''),
@@ -472,6 +501,11 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
         tmdbId,
         errorMessage: e.message,
       });
+      jellyfinCache.set(
+        JELLYFIN_UNREACHABLE_KEY,
+        true,
+        JELLYFIN_UNREACHABLE_TTL_SECONDS
+      );
       return res.status(200).json({ available: false });
     }
   }
