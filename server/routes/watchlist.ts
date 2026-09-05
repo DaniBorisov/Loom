@@ -12,6 +12,7 @@ import { getRepository } from '@server/datasource';
 import { MediaType } from '@server/constants/media';
 import { watchlistCreate } from '@server/interfaces/api/watchlistCreate';
 import { watchlistUpdate } from '@server/interfaces/api/watchlistUpdate';
+import { processAutoRequest } from '@server/lib/auto-request';
 import { transitionStatus } from '@server/lib/watchlist-transitions';
 
 const watchlistRoutes = Router();
@@ -32,6 +33,18 @@ watchlistRoutes.post<never, Watchlist, Watchlist>(
         watchlistRequest: values,
         user: req.user,
       });
+
+      // Fire-and-forget (DAN-93): kick off the Jellyfin check → Sonarr/Radarr
+      // auto-request without awaiting it, so the response stays fast and
+      // independent of downstream availability. processAutoRequest catches
+      // everything internally; non-want_to_watch statuses no-op inside.
+      processAutoRequest({
+        user: req.user,
+        tmdbId: request.tmdbId,
+        mediaType: request.mediaType,
+        watchlistStatus: request.status,
+      });
+
       return res.status(201).json(request);
     } catch (error) {
       if (!(error instanceof Error)) {
