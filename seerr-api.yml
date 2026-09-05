@@ -7841,6 +7841,49 @@ paths:
                 properties:
                   available:
                     type: boolean
+  /media/jellyfin-check-batch:
+    post:
+      summary: Check Jellyfin availability (batch)
+      description: 'Checks whether multiple TMDB items exist in the Jellyfin/Emby library in a single request. Returns { results } keyed by "<type>:<tmdbId>". Requires authentication.'
+      tags:
+        - media
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required:
+                      - tmdbId
+                      - type
+                    properties:
+                      tmdbId:
+                        type: number
+                      type:
+                        type: string
+                        enum: [movie, tv, anime]
+      responses:
+        '200':
+          description: Availability results keyed by "<type>:<tmdbId>"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+        '400':
+          description: Invalid request body
   /media/{mediaId}/file:
     delete:
       summary: Delete media file

@@ -1,5 +1,9 @@
 import Slider from '@app/components/Slider';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import {
+  availabilityResultKey,
+  useJellyfinAvailabilityBatch,
+} from '@app/hooks/useJellyfinAvailability';
 import { useUser } from '@app/hooks/useUser';
 import defineMessages from '@app/utils/defineMessages';
 import { ArrowRightCircleIcon } from '@heroicons/react/24/outline';
@@ -26,6 +30,19 @@ const PlexWatchlistSlider = () => {
   }>('/api/v1/discover/watchlist', {
     revalidateOnMount: true,
   });
+
+  const sliderItems = watchlistItems?.results ?? [];
+
+  // One batched availability request for all rendered cards (DAN-98). Must
+  // stay above the early return below to keep hook order stable.
+  const { data: availabilityData } = useJellyfinAvailabilityBatch(
+    sliderItems.length
+      ? sliderItems.map((item) => ({
+          tmdbId: item.tmdbId,
+          type: item.mediaType,
+        }))
+      : undefined
+  );
 
   if (
     (watchlistItems &&
@@ -68,6 +85,11 @@ const PlexWatchlistSlider = () => {
             tmdbId={item.tmdbId}
             type={item.mediaType}
             isAddedToWatchlist={true}
+            libraryAvailable={
+              availabilityData?.results[
+                availabilityResultKey(item.tmdbId, item.mediaType)
+              ]
+            }
           />
         ))}
       />

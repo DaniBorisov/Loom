@@ -1,5 +1,9 @@
 import Slider from '@app/components/Slider';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import {
+  availabilityResultKey,
+  useJellyfinAvailabilityBatch,
+} from '@app/hooks/useJellyfinAvailability';
 import { Permission, useUser } from '@app/hooks/useUser';
 import defineMessages from '@app/utils/defineMessages';
 import type { MediaResultsResponse } from '@server/interfaces/api/mediaInterfaces';
@@ -16,6 +20,19 @@ const RecentlyAddedSlider = () => {
   const { data: media, error: mediaError } = useSWR<MediaResultsResponse>(
     '/api/v1/media?filter=allavailable&take=20&sort=mediaAdded',
     { revalidateOnMount: true }
+  );
+
+  const sliderItems = media?.results ?? [];
+
+  // One batched availability request for all rendered cards (DAN-98). Must
+  // stay above the early return below to keep hook order stable.
+  const { data: availabilityData } = useJellyfinAvailabilityBatch(
+    sliderItems.length
+      ? sliderItems.map((item) => ({
+          tmdbId: item.tmdbId,
+          type: item.mediaType,
+        }))
+      : undefined
   );
 
   if (
@@ -44,6 +61,11 @@ const RecentlyAddedSlider = () => {
             tmdbId={item.tmdbId}
             tvdbId={item.tvdbId}
             type={item.mediaType}
+            libraryAvailable={
+              availabilityData?.results[
+                availabilityResultKey(item.tmdbId, item.mediaType)
+              ]
+            }
           />
         ))}
       />
