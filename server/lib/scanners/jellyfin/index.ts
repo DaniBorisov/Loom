@@ -1,4 +1,5 @@
 import animeList from '@server/api/animelist';
+import { isRequestTimeoutError } from '@server/api/externalapi';
 import type {
   JellyfinLibraryItem,
   JellyfinLibraryItemExtended,
@@ -533,7 +534,13 @@ class JellyfinScanner
         'info'
       );
     } catch (e) {
-      this.log('Sync interrupted', 'error', { errorMessage: e.message });
+      this.log(
+        isRequestTimeoutError(e)
+          ? 'Sync interrupted: Jellyfin request timed out (host unreachable?), aborting this run'
+          : 'Sync interrupted',
+        'error',
+        { errorMessage: e.message }
+      );
     } finally {
       this.endRun(sessionId);
     }

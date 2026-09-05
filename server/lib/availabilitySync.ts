@@ -1,6 +1,7 @@
 import type { JellyfinLibraryItem } from '@server/api/jellyfin';
 import JellyfinAPI from '@server/api/jellyfin';
 import type { PlexMetadata } from '@server/api/plexapi';
+import { isRequestTimeoutError } from '@server/api/externalapi';
 import PlexAPI from '@server/api/plexapi';
 import RadarrAPI, { type RadarrMovie } from '@server/api/servarr/radarr';
 import type { SonarrSeason, SonarrSeries } from '@server/api/servarr/sonarr';
@@ -38,6 +39,16 @@ class AvailabilitySync {
   readonly tmdb = new TheMovieDb();
 
   async run() {
+    // Re-entry guard (DAN-92): the scheduler fires on every tick without
+    // checking. If a previous run is still in flight, skip instead of
+    // stacking a second concurrent run on hung sockets.
+    if (this.running) {
+      logger.warn('Availability sync already running, skipping this tick.', {
+        label: 'AvailabilitySync',
+      });
+      return;
+    }
+
     const settings = getSettings();
     const mediaServerType = getSettings().main.mediaServerType;
     this.running = true;
@@ -101,12 +112,17 @@ class AvailabilitySync {
             try {
               await this.jellyfinClient.getSystemInfo();
             } catch (e) {
-              logger.error('Sync interrupted.', {
-                label: 'AvailabilitySync',
-                status: e.statusCode,
-                error: e.name,
-                errorMessage: e.errorCode,
-              });
+              logger.error(
+                isRequestTimeoutError(e)
+                  ? `Sync interrupted: Jellyfin request timed out after ${getSettings().network.apiRequestTimeout}ms (host unreachable?).`
+                  : 'Sync interrupted.',
+                {
+                  label: 'AvailabilitySync',
+                  status: e.statusCode,
+                  error: e.name,
+                  errorMessage: e.errorCode,
+                }
+              );
 
               this.running = false;
               return;
