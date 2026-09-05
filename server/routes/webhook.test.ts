@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it, mock } from 'node:test';
 
 import JellyfinAPI from '@server/api/jellyfin';
+import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
@@ -405,6 +406,36 @@ describe('POST /webhook/jellyfin', () => {
     });
     assert.ok(watchlist);
     assert.strictEqual(watchlist.status, WatchlistStatus.WATCHED);
+  });
+
+  it('creates an ANIME watchlist entry when the series matches the anime crosswalk', async () => {
+    await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
+    mock.method(
+      getAnimeCrosswalk(),
+      'getByTmdbId',
+      (tmdbId: number) =>
+        tmdbId === 214312
+          ? { AniList_id: 1, TheMovieDB_id: 214312 }
+          : undefined
+    );
+    mockSeriesLookup('jf-series-1', '214312', { played: false });
+
+    const res = await request(app)
+      .post('/webhook/jellyfin')
+      .set('X-Webhook-Secret', WEBHOOK_SECRET)
+      .send(episodePayload());
+
+    assert.strictEqual(res.status, 200);
+
+    const watchlist = await getRepository(Watchlist).findOne({
+      where: {
+        tmdbId: 214312,
+        mediaType: MediaType.ANIME,
+        requestedBy: { id: 1 },
+      },
+    });
+    assert.ok(watchlist);
+    assert.strictEqual(watchlist.status, WatchlistStatus.WATCHING);
   });
 
   it('does not downgrade an already-watched series via a partial episode', async () => {

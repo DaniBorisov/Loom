@@ -1,4 +1,5 @@
 import { MediaType } from '@server/constants/media';
+import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { WatchlistStatus } from '@server/entity/Watchlist';
@@ -226,7 +227,14 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
     const seriesTmdb =
       seriesData.ProviderIds?.Tmdb ?? seriesData.ProviderIds?.TheMovieDb;
     tmdbId = seriesTmdb ? Number(seriesTmdb) : null;
-    mediaType = MediaType.TV;
+    // Anime discovered purely through Jellyfin playback would otherwise
+    // default to TV — check the crosswalk so it lands as ANIME (DAN-91).
+    // No match keeps the TV default (genuine TV, or anime missing from the
+    // dataset per DAN-80).
+    mediaType =
+      tmdbId && getAnimeCrosswalk().getByTmdbId(tmdbId)
+        ? MediaType.ANIME
+        : MediaType.TV;
 
     // Use the series-level aggregate: if all available episodes are played,
     // the show is done. Otherwise any episode playback = watching.
