@@ -9,6 +9,7 @@ import globalMessages from '@server/i18n/globalMessages';
 import type { NotificationAgentConfig } from '@server/lib/settings';
 import { NotificationAgentKey, getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
+import { deliverPush } from '@server/lib/notifications/pushSender';
 import type { AvailableLocale } from '@server/types/languages';
 import webpush from 'web-push';
 import { Notification, shouldSendAdminNotification } from '..';
@@ -43,15 +44,6 @@ interface PushNotificationPayload {
   requestId?: number;
   pendingRequestsCount?: number;
   isAdmin?: boolean;
-}
-
-interface WebPushError extends Error {
-  statusCode?: number;
-  status?: number;
-  body?: string | unknown;
-  response?: {
-    body?: string | unknown;
-  };
 }
 
 class WebPushAgent
@@ -236,20 +228,20 @@ class WebPushAgent
       });
 
       try {
-        await webpush.sendNotification(
-          {
+        const outcome = await deliverPush({
+          subscription: {
             endpoint: pushSub.endpoint,
             keys: pushSub.keys,
           },
-          notificationPayload
-        );
-      } catch (e) {
-        const webPushError = e as WebPushError;
-        const statusCode = webPushError.statusCode || webPushError.status;
-        const errorMessage = webPushError.message || String(e);
+          payload: notificationPayload,
+        });
+
+        if (outcome === 'delivered') {
+          return;
+        }
 
         // RFC 8030: 410/404 are permanent failures, others are transient
-        const isPermanentFailure = statusCode === 410 || statusCode === 404;
+        const isPermanentFailure = outcome === 'permanent-failure';
 
         logger.error(
           isPermanentFailure
@@ -260,14 +252,23 @@ class WebPushAgent
             recipient: pushSub.user.displayName,
             type: Notification[type],
             subject: payload.subject,
-            errorMessage,
-            statusCode: statusCode || 'unknown',
+            outcome,
           }
         );
 
         if (isPermanentFailure) {
           await userPushSubRepository.remove(pushSub);
         }
+      } catch (e) {
+        // deliverPush only throws on unexpected errors outside send(); keep
+        // the subscription so a bug here never mass-deletes rows.
+        logger.error('Unexpected error delivering web push notification', {
+          label: 'Notifications',
+          recipient: pushSub.user.displayName,
+          type: Notification[type],
+          subject: payload.subject,
+          errorMessage: (e as Error)?.message || String(e),
+        });
       }
     };
 
