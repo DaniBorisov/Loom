@@ -32,15 +32,16 @@ const StatusChecker = () => {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
-  // Fail fast-ish while the connection is down so the banner clears quickly
-  // once the server is back; otherwise keep the quiet 60s heartbeat.
+  // Poll every 10s so an outage surfaces fast; tighten to 5s while the
+  // connection is down so the banner clears quickly once the server is
+  // back (DAN-96).
   const connectionLost =
     consecutiveFailures >= CONNECTION_LOST_THRESHOLD;
 
   const { data, error } = useSWR<StatusResponse>(
     '/api/v1/status?checkUpdateAvailable=false',
     {
-      refreshInterval: connectionLost ? 10 * 1000 : 60 * 1000,
+      refreshInterval: connectionLost ? 5 * 1000 : 10 * 1000,
     }
   );
 
