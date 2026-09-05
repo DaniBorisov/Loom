@@ -15,25 +15,20 @@ import type {
 } from '@server/interfaces/api/mediaInterfaces';
 import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
-import cacheManager from '@server/lib/cache';
+import {
+  clearJellyfinUnreachable,
+  isJellyfinUnreachable,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import logger from '@server/logger';
 import { isAuthenticated } from '@server/middleware/auth';
 import { getHostname } from '@server/utils/getHostname';
 import { Router } from 'express';
 import type { FindOneOptions } from 'typeorm';
 import { EntityNotFoundError, In, IsNull, Not } from 'typeorm';
+import { z } from 'zod';
 
 const mediaRoutes = Router();
-
-/**
- * Circuit-breaker flag for the jellyfin-check route (DAN-97). Stored in the
- * shared Jellyfin NodeCache (URL-serialized response keys can never collide
- * with this fixed key). Cooldown is deliberately short: just long enough to
- * stop every card re-paying the 10s timeout during an outage, short enough
- * that recovery is picked up quickly.
- */
-export const JELLYFIN_UNREACHABLE_KEY = 'jellyfin:unreachable';
-export const JELLYFIN_UNREACHABLE_TTL_SECONDS = 45;
 
 mediaRoutes.get('/', async (req, res, next) => {
   const mediaRepository = getRepository(Media);
@@ -445,8 +440,7 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
     // timeout. After the first failure, short-circuit to { available: false }
     // until the cooldown lapses; the next real probe then either clears the
     // flag (recovered) or re-arms it (still down).
-    const jellyfinCache = cacheManager.getCache('jellyfin').data;
-    if (jellyfinCache.get<boolean>(JELLYFIN_UNREACHABLE_KEY)) {
+    if (isJellyfinUnreachable()) {
       logger.debug(
         `Skipping Jellyfin availability check (circuit breaker open): tmdbId=${tmdbId}`,
         { label: 'Media' }
@@ -486,7 +480,7 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
 
       // A successful lookup proves the server is back — clear the breaker so
       // subsequent checks go through normally again.
-      jellyfinCache.del(JELLYFIN_UNREACHABLE_KEY);
+      clearJellyfinUnreachable();
 
       logger.info(
         `Jellyfin availability check: tmdbId=${tmdbId} type=${mediaType ?? 'any'} found=${!!item}` +
@@ -501,13 +495,115 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
         tmdbId,
         errorMessage: e.message,
       });
-      jellyfinCache.set(
-        JELLYFIN_UNREACHABLE_KEY,
-        true,
-        JELLYFIN_UNREACHABLE_TTL_SECONDS
-      );
+      markJellyfinUnreachable();
       return res.status(200).json({ available: false });
     }
+  }
+);
+
+const jellyfinCheckBatch = z.object({
+  items: z
+    .array(
+      z.object({
+        tmdbId: z.coerce.number(),
+        type: z.enum(['movie', 'tv', 'anime']),
+      })
+    )
+    .max(100),
+});
+
+/**
+ * Batched Jellyfin availability check (DAN-98): one request for N cards
+ * instead of N per-card requests. Reuses the same lookup logic and circuit
+ * breaker as the single-item route above.
+ */
+mediaRoutes.post<never, { results: Record<string, boolean> }>(
+  '/jellyfin-check-batch',
+  isAuthenticated(),
+  async (req, res) => {
+    const parsed = jellyfinCheckBatch.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ results: {} });
+    }
+
+    const settings = getSettings();
+    const mediaServerType = settings.main.mediaServerType;
+    const results: Record<string, boolean> = {};
+    const allFalse = () => {
+      for (const item of parsed.data.items) {
+        results[`${item.type}:${item.tmdbId}`] = false;
+      }
+      return res.status(200).json({ results });
+    };
+
+    if (
+      mediaServerType !== MediaServerType.JELLYFIN &&
+      mediaServerType !== MediaServerType.EMBY
+    ) {
+      return allFalse();
+    }
+
+    if (isJellyfinUnreachable()) {
+      logger.debug(
+        `Skipping batched Jellyfin availability check for ${parsed.data.items.length} items (circuit breaker open)`,
+        { label: 'Media' }
+      );
+      return allFalse();
+    }
+
+    const userRepository = getRepository(User);
+    const admin = await userRepository.findOne({
+      where: { id: 1 },
+      select: [
+        'id',
+        'jellyfinAuthToken',
+        'jellyfinDeviceId',
+        'jellyfinUserId',
+      ],
+    });
+
+    if (!admin || !admin.jellyfinAuthToken) {
+      return allFalse();
+    }
+
+    const jellyfin = new JellyfinAPI(
+      getHostname(),
+      settings.jellyfin.apiKey,
+      admin.jellyfinDeviceId
+    );
+
+    jellyfin.setUserId(admin.jellyfinUserId ?? '');
+
+    let anyFailure = false;
+    for (const item of parsed.data.items) {
+      const key = `${item.type}:${item.tmdbId}`;
+      const includeItemTypes =
+        item.type === 'movie' ? 'Movie' : 'Series';
+      try {
+        const found = await jellyfin.lookupByProviderId(
+          String(item.tmdbId),
+          'Tmdb',
+          includeItemTypes
+        );
+        results[key] = !!found;
+      } catch (e) {
+        logger.error('Failed to check Jellyfin availability (batch)', {
+          label: 'Media',
+          tmdbId: item.tmdbId,
+          errorMessage: (e as Error).message,
+        });
+        results[key] = false;
+        anyFailure = true;
+      }
+    }
+
+    if (anyFailure) {
+      markJellyfinUnreachable();
+    } else {
+      clearJellyfinUnreachable();
+    }
+
+    return res.status(200).json({ results });
   }
 );
 

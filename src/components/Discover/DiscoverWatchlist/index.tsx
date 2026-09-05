@@ -2,6 +2,10 @@ import Button from '@app/components/Common/Button';
 import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import {
+  availabilityResultKey,
+  useJellyfinAvailabilityBatch,
+} from '@app/hooks/useJellyfinAvailability';
 import { useUser } from '@app/hooks/useUser';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
@@ -68,17 +72,28 @@ const DiscoverWatchlist = () => {
     refreshInterval: 30000,
   });
 
+  const items = (watchlistData ?? []).reduce(
+    (a, v) => [...a, ...v.results],
+    [] as WatchlistEntry[]
+  );
+
+  // One batched availability request for all rendered cards (DAN-98). Must
+  // stay above the error early-return to keep hook order stable.
+  const { data: availabilityData } = useJellyfinAvailabilityBatch(
+    items.length
+      ? items.map((item) => ({
+          tmdbId: item.tmdbId,
+          type: item.mediaType,
+        }))
+      : undefined
+  );
+
   if (error) {
     return <ErrorPage statusCode={500} />;
   }
 
   const title = intl.formatMessage(
     router.query.userId ? messages.watchlist : messages.discoverwatchlist
-  );
-
-  const items = (watchlistData ?? []).reduce(
-    (a, v) => [...a, ...v.results],
-    [] as WatchlistEntry[]
   );
 
   const hasMorePages =
@@ -136,17 +151,22 @@ const DiscoverWatchlist = () => {
       ) : (
         <>
           <ul className="cards-vertical">
-            {items.map((item) => (
-              <li key={item.id}>
-                <TmdbTitleCard
-                  id={item.tmdbId}
-                  tmdbId={item.tmdbId}
-                  type={item.mediaType}
-                  isAddedToWatchlist
-                  canExpand
-                />
-              </li>
-            ))}
+              {items.map((item) => (
+                <li key={item.id}>
+                  <TmdbTitleCard
+                    id={item.tmdbId}
+                    tmdbId={item.tmdbId}
+                    type={item.mediaType}
+                    isAddedToWatchlist
+                    canExpand
+                    libraryAvailable={
+                      availabilityData?.results[
+                        availabilityResultKey(item.tmdbId, item.mediaType)
+                      ]
+                    }
+                  />
+                </li>
+              ))}
           </ul>
           {hasMorePages && (
             <div className="mt-8 flex justify-center">

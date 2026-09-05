@@ -9,6 +9,7 @@ import { User } from '@server/entity/User';
 import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import cacheManager from '@server/lib/cache';
+import { JELLYFIN_UNREACHABLE_KEY } from '@server/lib/jellyfinBreaker';
 import { checkUser } from '@server/middleware/auth';
 import { setupTestDb } from '@server/test/db';
 import type { Express } from 'express';
@@ -16,7 +17,7 @@ import express from 'express';
 import session from 'express-session';
 import request from 'supertest';
 import authRoutes from './auth';
-import mediaRoutes, { JELLYFIN_UNREACHABLE_KEY } from './media';
+import mediaRoutes from './media';
 
 let app: Express;
 
@@ -317,8 +318,7 @@ describe('GET /media/jellyfin-check/:tmdbId', () => {
     }
   });
 
-  it('clears the breaker after a successful check (recovery)', async () => {
-    const settings = getSettings();
+  it('clears the breaker after a successful check (recovery)', async () => {    const settings = getSettings();
     const priorType = settings.main.mediaServerType;
     settings.main.mediaServerType = MediaServerType.JELLYFIN;
 
@@ -383,6 +383,166 @@ describe('GET /media/jellyfin-check/:tmdbId', () => {
       await userRepo.save(admin);
       settings.main.mediaServerType = priorType;
       cacheManager.getCache('jellyfin').data.del(JELLYFIN_UNREACHABLE_KEY);
+    }
+  });
+});
+
+describe('POST /media/jellyfin-check-batch (DAN-98)', () => {
+  beforeEach(() => {
+    cacheManager.getCache('jellyfin').data.del(JELLYFIN_UNREACHABLE_KEY);
+  });
+
+  async function setupJellyfinAdmin() {
+    const settings = getSettings();
+    const priorType = settings.main.mediaServerType;
+    settings.main.mediaServerType = MediaServerType.JELLYFIN;
+
+    const userRepo = getRepository(User);
+    const admin = await userRepo.findOneOrFail({ where: { id: 1 } });
+    const priorToken = admin.jellyfinAuthToken;
+    const priorUserId = admin.jellyfinUserId;
+    const priorDeviceId = admin.jellyfinDeviceId;
+    admin.jellyfinAuthToken = 'test-token';
+    admin.jellyfinUserId = 'admin-jf-id';
+    admin.jellyfinDeviceId = 'test-device-id';
+    await userRepo.save(admin);
+
+    return {
+      cleanup: async () => {
+        admin.jellyfinAuthToken = priorToken;
+        admin.jellyfinUserId = priorUserId;
+        admin.jellyfinDeviceId = priorDeviceId;
+        await userRepo.save(admin);
+        settings.main.mediaServerType = priorType;
+        cacheManager.getCache('jellyfin').data.del(JELLYFIN_UNREACHABLE_KEY);
+      },
+    };
+  }
+
+  it('returns availability for all items in one request', async () => {
+    const { cleanup } = await setupJellyfinAdmin();
+    const lookupMock = mock.method(
+      JellyfinAPI.prototype as any,
+      'lookupByProviderId',
+      async (providerId: string) =>
+        providerId === '11111'
+          ? { Id: 'found-1', Name: 'Found Movie' }
+          : null
+    );
+
+    try {
+      const agent = await loginAs('admin@seerr.dev');
+      const res = await agent.post('/media/jellyfin-check-batch').send({
+        items: [
+          { tmdbId: 11111, type: 'movie' },
+          { tmdbId: 22222, type: 'tv' },
+          { tmdbId: 33333, type: 'anime' },
+        ],
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(res.body.results, {
+        'movie:11111': true,
+        'tv:22222': false,
+        'anime:33333': false,
+      });
+      assert.strictEqual(lookupMock.mock.callCount(), 3);
+    } finally {
+      lookupMock.mock.restore();
+      await cleanup();
+    }
+  });
+
+  it('maps anime items to Series lookups', async () => {
+    const { cleanup } = await setupJellyfinAdmin();
+    const lookupMock = mock.method(
+      JellyfinAPI.prototype as any,
+      'lookupByProviderId',
+      async () => null
+    );
+
+    try {
+      const agent = await loginAs('admin@seerr.dev');
+      const res = await agent.post('/media/jellyfin-check-batch').send({
+        items: [{ tmdbId: 33333, type: 'anime' }],
+      });
+
+      assert.strictEqual(res.status, 200);
+      const callArgs = lookupMock.mock.calls[0]!;
+      assert.strictEqual(callArgs.arguments[2] as any, 'Series');
+    } finally {
+      lookupMock.mock.restore();
+      await cleanup();
+    }
+  });
+
+  it('short-circuits the whole batch when the breaker is open', async () => {
+    const { cleanup } = await setupJellyfinAdmin();
+    const lookupMock = mock.method(
+      JellyfinAPI.prototype as any,
+      'lookupByProviderId',
+      async () => {
+        throw new Error('timeout of 10000ms exceeded');
+      }
+    );
+
+    try {
+      const agent = await loginAs('admin@seerr.dev');
+      await agent.post('/media/jellyfin-check-batch').send({
+        items: [{ tmdbId: 11111, type: 'movie' }],
+      });
+      assert.strictEqual(lookupMock.mock.callCount(), 1);
+
+      const res = await agent.post('/media/jellyfin-check-batch').send({
+        items: [
+          { tmdbId: 11111, type: 'movie' },
+          { tmdbId: 22222, type: 'tv' },
+        ],
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(res.body.results, {
+        'movie:11111': false,
+        'tv:22222': false,
+      });
+      assert.strictEqual(lookupMock.mock.callCount(), 1);
+    } finally {
+      lookupMock.mock.restore();
+      await cleanup();
+    }
+  });
+
+  it('returns 400 for an invalid body', async () => {
+    const { cleanup } = await setupJellyfinAdmin();
+
+    try {
+      const agent = await loginAs('admin@seerr.dev');
+      const res = await agent
+        .post('/media/jellyfin-check-batch')
+        .send({ items: 'not-an-array' });
+
+      assert.strictEqual(res.status, 400);
+      assert.deepStrictEqual(res.body.results, {});
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('returns all false when the server type is not Jellyfin', async () => {
+    const settings = getSettings();
+    const priorType = settings.main.mediaServerType;
+    settings.main.mediaServerType = MediaServerType.PLEX;
+
+    try {
+      const agent = await loginAs('admin@seerr.dev');
+      const res = await agent.post('/media/jellyfin-check-batch').send({
+        items: [{ tmdbId: 11111, type: 'movie' }],
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(res.body.results, { 'movie:11111': false });
+    } finally {
+      settings.main.mediaServerType = priorType;
     }
   });
 });

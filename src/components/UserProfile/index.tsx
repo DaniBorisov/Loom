@@ -6,6 +6,10 @@ import RequestCard from '@app/components/RequestCard';
 import Slider from '@app/components/Slider';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import ProfileHeader from '@app/components/UserProfile/ProfileHeader';
+import {
+  availabilityResultKey,
+  useJellyfinAvailabilityBatch,
+} from '@app/hooks/useJellyfinAvailability';
 import { Permission, UserType, useUser } from '@app/hooks/useUser';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
@@ -95,6 +99,30 @@ const UserProfile = () => {
       {
         revalidateOnMount: true,
       }
+    );
+
+  // Batched availability for both sliders below (DAN-98). Must stay above
+  // the early returns to keep hook order stable.
+  const profileWatchlistEntries = watchlistItems?.results ?? [];
+  const { data: profileWatchlistAvailability } =
+    useJellyfinAvailabilityBatch(
+      profileWatchlistEntries.length
+        ? profileWatchlistEntries.map((item) => ({
+            tmdbId: item.tmdbId,
+            type: item.mediaType,
+          }))
+        : undefined
+    );
+
+  const recentlyWatchedEntries = watchData?.recentlyWatched ?? [];
+  const { data: recentlyWatchedAvailability } =
+    useJellyfinAvailabilityBatch(
+      recentlyWatchedEntries.length
+        ? recentlyWatchedEntries.map((item) => ({
+            tmdbId: item.tmdbId,
+            type: item.mediaType,
+          }))
+        : undefined
     );
 
   const updateAvailableTitles = useCallback(
@@ -370,6 +398,11 @@ const UserProfile = () => {
                   key={`watchlist-slider-item-${item.ratingKey}`}
                   tmdbId={item.tmdbId}
                   type={item.mediaType}
+                  libraryAvailable={
+                    profileWatchlistAvailability?.results[
+                      availabilityResultKey(item.tmdbId, item.mediaType)
+                    ]
+                  }
                 />
               ))}
             />
@@ -396,6 +429,11 @@ const UserProfile = () => {
                   tmdbId={item.tmdbId}
                   tvdbId={item.tvdbId}
                   type={item.mediaType}
+                  libraryAvailable={
+                    recentlyWatchedAvailability?.results[
+                      availabilityResultKey(item.tmdbId, item.mediaType)
+                    ]
+                  }
                 />
               ))}
             />

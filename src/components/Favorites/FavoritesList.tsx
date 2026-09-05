@@ -1,6 +1,10 @@
 import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import {
+  availabilityResultKey,
+  useJellyfinAvailabilityBatch,
+} from '@app/hooks/useJellyfinAvailability';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import type {
@@ -42,6 +46,19 @@ const FavoritesList = () => {
   const { data: favoritesData, error } =
     useSWR<FavoritesPageData>('/api/v1/favorites');
 
+  const items = favoritesData?.results ?? [];
+
+  // One batched availability request for all rendered cards (DAN-98). Must
+  // stay above the error early-return to keep hook order stable.
+  const { data: availabilityData } = useJellyfinAvailabilityBatch(
+    items.length
+      ? items.map((item) => ({
+          tmdbId: item.mediaId,
+          type: item.mediaType,
+        }))
+      : undefined
+  );
+
   if (error) {
     return <ErrorPage statusCode={500} />;
   }
@@ -49,8 +66,6 @@ const FavoritesList = () => {
   const title = router.query.userId
     ? intl.formatMessage(messages.profileTitle)
     : intl.formatMessage(messages.title);
-
-  const items = favoritesData?.results ?? [];
 
   return (
     <>
@@ -101,6 +116,14 @@ const FavoritesList = () => {
                 isAddedToWatchlist={false}
                 canExpand
                 source={item.source === 'anilist' ? 'anilist' : 'tmdb'}
+                libraryAvailable={
+                  availabilityData?.results[
+                    availabilityResultKey(
+                      item.mediaId,
+                      item.mediaType as 'movie' | 'tv' | 'anime'
+                    )
+                  ]
+                }
               />
             </li>
           ))}

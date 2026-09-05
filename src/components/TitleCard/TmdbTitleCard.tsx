@@ -15,6 +15,12 @@ export interface TmdbTitleCardProps {
   isAddedToWatchlist?: boolean;
   mutateParent?: () => void;
   source?: 'tmdb' | 'anilist';
+  /**
+   * Batch-provided availability (DAN-98). When set by a list parent that
+   * already fetched availability for all its items at once, the per-card
+   * request is skipped.
+   */
+  libraryAvailable?: boolean;
 }
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
@@ -30,6 +36,7 @@ const TmdbTitleCard = ({
   isAddedToWatchlist = false,
   mutateParent,
   source = 'tmdb',
+  libraryAvailable: libraryAvailableOverride,
 }: TmdbTitleCardProps) => {
   const { hasPermission } = useUser();
 
@@ -43,9 +50,12 @@ const TmdbTitleCard = ({
   );
 
   const { data: libraryData } = useJellyfinAvailability(
-    title ? tmdbId : undefined,
+    libraryAvailableOverride === undefined && title ? tmdbId : undefined,
     type
   );
+
+  const libraryAvailable =
+    libraryAvailableOverride ?? libraryData?.available;
 
   if (!title && !error) {
     return (
@@ -84,7 +94,7 @@ const TmdbTitleCard = ({
         canExpand={canExpand}
         mutateParent={mutateParent}
         source={source}
-        libraryAvailable={libraryData?.available}
+        libraryAvailable={libraryAvailable}
       />
     );
   }
