@@ -55,9 +55,23 @@ registerRoute(
   })
 );
 
-// Offline fallback page. This precaches /offline.html and serves it instead of a
-// navigation only when both the network and the navigation cache miss, so users
-// never get a blank screen while offline.
+// Offline fallback page, served instead of a navigation only when both the
+// network and the navigation cache miss. offlineFallback() only serves pages
+// from Workbox's PRECACHE — merely referencing the URL does not store it
+// (DAN-95), so precache it here, otherwise the fallback handler finds
+// nothing and the browser shows its native retry UI instead of our page.
+// `revision` is the sha256 of offline.html at the time of writing;
+// recompute and bump it whenever offline.html changes, or the updated page
+// will never be picked up. Keep offline.html fully self-contained (inline
+// CSS, no external assets) so nothing else needs precaching.
+workbox.precaching.precacheAndRoute([
+  {
+    url: '/offline.html',
+    revision:
+      '2fca32dcb4451982ceccf4a72cdc2be1274892dd384a665d561f952384c8de62',
+  },
+]);
+
 workbox.recipes.offlineFallback({
   pageFallback: '/offline.html',
 });

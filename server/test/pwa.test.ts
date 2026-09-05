@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import { join } from 'node:path';
 
 const SW_PATH = join(__dirname, '../../public/sw.js');
+const OFFLINE_PATH = join(__dirname, '../../public/offline.html');
 
 const readSw = async (): Promise<string> => readFile(SW_PATH, 'utf8');
 
@@ -53,6 +55,25 @@ describe('public/sw.js PWA offline caching contract (Epic 6 / DAN-40)', () => {
   it('provides an offline fallback page', () => {
     assert.match(sw, /workbox\.recipes\.offlineFallback/);
     assert.match(sw, /pageFallback: '\/offline\.html'/);
+  });
+
+  it('precaches the offline fallback page so offlineFallback() can serve it', async () => {
+    // Regression guard for DAN-95: offlineFallback() only serves pages from
+    // Workbox's precache — without precacheAndRoute the handler finds nothing
+    // and the browser shows its native retry UI.
+    assert.match(sw, /workbox\.precaching\.precacheAndRoute/);
+    const entry = sw.match(
+      /\{\s*url:\s*'\/offline\.html',\s*revision:\s*'([0-9a-f]+)'/
+    );
+    assert.ok(entry, 'sw.js should precache /offline.html with a revision');
+
+    const offlineHtml = await readFile(OFFLINE_PATH);
+    const digest = createHash('sha256').update(offlineHtml).digest('hex');
+    assert.strictEqual(
+      entry[1],
+      digest,
+      'precache revision must match the current offline.html content hash — recompute it when the file changes'
+    );
   });
 
   it('preserves the push/notification handler for Epic 7 extension', () => {
