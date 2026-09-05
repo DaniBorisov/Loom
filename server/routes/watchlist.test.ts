@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import { before, describe, it } from 'node:test';
+import { before, describe, it, mock } from 'node:test';
+
+import JellyfinAPI from '@server/api/jellyfin';
+import ExternalAPI from '@server/api/externalapi';
+import { MediaServerType } from '@server/constants/server';
+import { MediaRequest } from '@server/entity/MediaRequest';
 
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
@@ -356,5 +361,78 @@ describe('Watchlist routes (HTTP-level)', () => {
   it('should return 401 when not authenticated', async () => {
     const res = await request(app).delete('/api/v1/watchlist/mal-import');
     assert.strictEqual(res.status, 401);
+  });
+});
+
+describe('Watchlist POST triggers auto-request (DAN-93)', () => {
+  it('invokes the auto-request orchestrator fire-and-forget on watchlist add', async () => {
+    // getMovie/getTvShow are instance arrow properties (not on the
+    // prototype), so mock the underlying ExternalAPI.get they both call.
+    mock.method(ExternalAPI.prototype as never, 'get' as never, async () => ({
+      id: 71001,
+      external_ids: { tvdb_id: null },
+    }));
+
+    const settings = getSettings();
+    const savedMediaServerType = settings.main.mediaServerType;
+    settings.main.mediaServerType = MediaServerType.JELLYFIN;
+
+    const userRepo = getRepository(User);
+    const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
+    admin.jellyfinAuthToken = 'test-jf-token';
+    admin.jellyfinUserId = 'admin-jf-id';
+    admin.jellyfinDeviceId = 'test-device-id';
+    await userRepo.save(admin);
+
+    try {
+      // Gate the Jellyfin lookup so we can prove the HTTP response does not
+      // wait for the orchestrator: if the route awaited it, POST would hang.
+      let releaseLookup!: () => void;
+      const lookupGate = new Promise<void>((resolve) => {
+        releaseLookup = resolve;
+      });
+      mock.method(
+        JellyfinAPI.prototype as never,
+        'lookupByProviderId' as never,
+        async () => {
+          await lookupGate;
+          return null;
+        }
+      );
+
+      const requestMock = mock.method(MediaRequest, 'request', async () => ({
+        id: 1,
+        status: 2,
+      }));
+
+      const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+      const res = await adminAgent
+        .post('/api/v1/watchlist')
+        .send({ tmdbId: 71001, mediaType: 'movie' });
+
+      assert.strictEqual(res.status, 201);
+      assert.strictEqual(requestMock.mock.callCount(), 0);
+
+      releaseLookup();
+      const deadline = Date.now() + 5000;
+      while (requestMock.mock.callCount() === 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      assert.strictEqual(requestMock.mock.callCount(), 1);
+
+      const callArgs = requestMock.mock.calls[0]!.arguments as unknown as [
+        { mediaType: MediaType },
+        unknown,
+        { isAutoRequest: boolean },
+      ];
+      assert.strictEqual(callArgs[0].mediaType, MediaType.MOVIE);
+      assert.strictEqual(callArgs[2].isAutoRequest, true);
+    } finally {
+      settings.main.mediaServerType = savedMediaServerType;
+      admin.jellyfinAuthToken = '';
+      admin.jellyfinUserId = '';
+      admin.jellyfinDeviceId = '';
+      await userRepo.save(admin);
+    }
   });
 });
