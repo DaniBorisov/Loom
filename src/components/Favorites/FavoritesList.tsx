@@ -1,6 +1,7 @@
 import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
 import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,
@@ -13,6 +14,7 @@ import type {
 } from '@server/entity/Favorite';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useMemo } from 'react';
 import { useIntl } from 'react-intl';
 import useSWR from 'swr';
 
@@ -46,7 +48,10 @@ const FavoritesList = () => {
   const { data: favoritesData, error } =
     useSWR<FavoritesPageData>('/api/v1/favorites');
 
-  const items = favoritesData?.results ?? [];
+  const items = useMemo(
+    () => favoritesData?.results ?? [],
+    [favoritesData]
+  );
 
   // One batched availability request for all rendered cards (DAN-98). Must
   // stay above the error early-return to keep hook order stable.
@@ -57,6 +62,20 @@ const FavoritesList = () => {
           type: item.mediaType,
         }))
       : undefined
+  );
+
+  // No favorite-status request needed here (DAN-99): every rendered card is
+  // a known favorite and item.id is already the Favorite row id. Memoized
+  // for stable prop identity so TitleCard doesn't resync on every render.
+  const favoriteStatuses = useMemo(
+    () =>
+      new Map<number, FavoriteStatusResult>(
+        items.map((item) => [
+          item.id,
+          { isFavorited: true, favoriteId: item.id },
+        ])
+      ),
+    [items]
   );
 
   if (error) {
@@ -116,6 +135,7 @@ const FavoritesList = () => {
                 isAddedToWatchlist={false}
                 canExpand
                 source={item.source === 'anilist' ? 'anilist' : 'tmdb'}
+                favoriteStatus={favoriteStatuses.get(item.id)}
                 libraryAvailable={
                   availabilityData?.results[
                     availabilityResultKey(

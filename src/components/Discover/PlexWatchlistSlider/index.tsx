@@ -1,6 +1,10 @@
 import Slider from '@app/components/Slider';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
+import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,
 } from '@app/hooks/useJellyfinAvailability';
@@ -40,6 +44,16 @@ const PlexWatchlistSlider = () => {
       ? sliderItems.map((item) => ({
           tmdbId: item.tmdbId,
           type: item.mediaType,
+        }))
+      : undefined
+  );
+
+  // One batched favorite-status request for all rendered cards (DAN-99).
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    sliderItems.length
+      ? sliderItems.map((item) => ({
+          mediaId: item.tmdbId,
+          source: 'tmdb' as const,
         }))
       : undefined
   );
@@ -85,6 +99,11 @@ const PlexWatchlistSlider = () => {
             tmdbId={item.tmdbId}
             type={item.mediaType}
             isAddedToWatchlist={true}
+            favoriteStatus={
+              favoriteData?.results[
+                favoriteStatusKey(item.tmdbId, 'tmdb')
+              ] ?? null
+            }
             libraryAvailable={
               availabilityData?.results[
                 availabilityResultKey(item.tmdbId, item.mediaType)

@@ -9,6 +9,10 @@ import RequestModal from '@app/components/RequestModal';
 import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import TitleCard from '@app/components/TitleCard';
+import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
 import useSettings from '@app/hooks/useSettings';
 import useToasts from '@app/hooks/useToasts';
 import { Permission, useUser } from '@app/hooks/useUser';
@@ -83,6 +87,16 @@ const CollectionDetails = ({ collection }: CollectionDetailsProps) => {
 
   const { data: genres } =
     useSWR<{ id: number; name: string }[]>(`/api/v1/genres/movie`);
+
+  // One batched favorite-status request for all part cards (DAN-99).
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    data?.parts.length
+      ? data.parts.map((title) => ({
+          mediaId: title.id,
+          source: 'tmdb' as const,
+        }))
+      : undefined
+  );
 
   const onClickHideItemBtn = async (): Promise<void> => {
     setIsBlocklistUpdating(true);
@@ -504,6 +518,11 @@ const CollectionDetails = ({ collection }: CollectionDetailsProps) => {
               year={title.releaseDate}
               mediaType={title.mediaType}
               mutateParent={revalidate}
+              favoriteStatus={
+                favoriteData?.results[
+                  favoriteStatusKey(title.id, 'tmdb')
+                ] ?? null
+              }
             />
           ))}
       />

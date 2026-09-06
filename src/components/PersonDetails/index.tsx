@@ -5,6 +5,10 @@ import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import PageTitle from '@app/components/Common/PageTitle';
 import ExternalLinkBlock from '@app/components/ExternalLinkBlock';
 import TitleCard from '@app/components/TitleCard';
+import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
 import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
@@ -86,6 +90,17 @@ const PersonDetails = () => {
       return 1;
     });
   }, [combinedCredits, currentMediaType]);
+
+  // One batched favorite-status request for all cast + crew cards (DAN-99).
+  // Must stay above the early returns below to keep hook order stable.
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    combinedCredits
+      ? [...combinedCredits.cast, ...combinedCredits.crew].map((media) => ({
+          mediaId: media.id,
+          source: 'tmdb' as const,
+        }))
+      : undefined
+  );
 
   if (!data && !error) {
     return <LoadingSpinner />;
@@ -184,6 +199,11 @@ const PersonDetails = () => {
                 mediaType={media.mediaType as 'movie' | 'tv' | 'anime'}
                 status={media.mediaInfo?.status}
                 canExpand
+                favoriteStatus={
+                  favoriteData?.results[
+                    favoriteStatusKey(media.id, 'tmdb')
+                  ] ?? null
+                }
               />
               {media.character && (
                 <div className="mt-2 w-full truncate text-center text-xs text-gray-300">
@@ -225,6 +245,11 @@ const PersonDetails = () => {
                 mediaType={media.mediaType as 'movie' | 'tv' | 'anime'}
                 status={media.mediaInfo?.status}
                 canExpand
+                favoriteStatus={
+                  favoriteData?.results[
+                    favoriteStatusKey(media.id, 'tmdb')
+                  ] ?? null
+                }
               />
               {media.job && (
                 <div className="mt-2 w-full truncate text-center text-xs text-gray-300">

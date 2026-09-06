@@ -3,6 +3,10 @@ import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
+import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,
 } from '@app/hooks/useJellyfinAvailability';
@@ -88,6 +92,16 @@ const DiscoverWatchlist = () => {
       : undefined
   );
 
+  // One batched favorite-status request for all rendered cards (DAN-99).
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    items.length
+      ? items.map((item) => ({
+          mediaId: item.tmdbId,
+          source: 'tmdb' as const,
+        }))
+      : undefined
+  );
+
   if (error) {
     return <ErrorPage statusCode={500} />;
   }
@@ -159,6 +173,11 @@ const DiscoverWatchlist = () => {
                     type={item.mediaType}
                     isAddedToWatchlist
                     canExpand
+                    favoriteStatus={
+                      favoriteData?.results[
+                        favoriteStatusKey(item.tmdbId, 'tmdb')
+                      ] ?? null
+                    }
                     libraryAvailable={
                       availabilityData?.results[
                         availabilityResultKey(item.tmdbId, item.mediaType)

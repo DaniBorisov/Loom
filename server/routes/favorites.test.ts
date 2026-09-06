@@ -240,6 +240,7 @@ describe('Favorite routes (HTTP-level)', () => {
   });
 
   it('should resolve AniList ID to TMDB ID when favoriting', async () => {
+
     const favRepo = getRepository(Favorite);
 
     const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
@@ -263,5 +264,129 @@ describe('Favorite routes (HTTP-level)', () => {
 
     // Cleanup
     await favRepo.delete({ id: createRes.body.id });
+  });
+});
+
+describe('Favorite check-batch route (DAN-99)', () => {
+  before(async () => {
+    app = createApp();
+  });
+
+  it('should return batched status with favoriteIds in one request', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+
+    const createRes = await adminAgent
+      .post('/api/v1/favorites')
+      .send({ mediaId: 20101, mediaType: 'movie', source: 'tmdb' });
+    assert.strictEqual(createRes.status, 201);
+
+    const res = await adminAgent.post('/api/v1/favorites/check-batch').send({
+      items: [
+        { mediaId: 20101, source: 'tmdb' },
+        { mediaId: 20102, source: 'tmdb' },
+        { mediaId: 20103, source: 'anilist' },
+      ],
+    });
+
+    assert.strictEqual(res.status, 200);
+    assert.equal(res.body.results['tmdb:20101'].isFavorited, true);
+    assert.equal(res.body.results['tmdb:20101'].favoriteId, createRes.body.id);
+    assert.equal(res.body.results['tmdb:20102'].isFavorited, false);
+    assert.equal(res.body.results['tmdb:20102'].favoriteId, null);
+    assert.equal(res.body.results['anilist:20103'].isFavorited, false);
+  });
+
+  it('should scope results to the requesting user', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const createRes = await adminAgent
+      .post('/api/v1/favorites')
+      .send({ mediaId: 20201, mediaType: 'movie', source: 'tmdb' });
+    assert.strictEqual(createRes.status, 201);
+
+    const friendAgent = await loginAs('friend@seerr.dev', 'test1234');
+    const res = await friendAgent.post('/api/v1/favorites/check-batch').send({
+      items: [{ mediaId: 20201, source: 'tmdb' }],
+    });
+
+    assert.strictEqual(res.status, 200);
+    assert.equal(res.body.results['tmdb:20201'].isFavorited, false);
+    assert.equal(res.body.results['tmdb:20201'].favoriteId, null);
+  });
+
+  it('should distinguish the same mediaId under different sources', async () => {
+    const favRepo = getRepository(Favorite);
+    const admin = await getRepository(User).findOneByOrFail({
+      email: 'admin@seerr.dev',
+    });
+
+    await favRepo.save(
+      new Favorite({
+        userId: admin.id,
+        mediaId: 20301,
+        mediaType: FavoriteMediaType.ANIME,
+        source: FavoriteSource.ANILIST,
+      })
+    );
+
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent.post('/api/v1/favorites/check-batch').send({
+      items: [
+        { mediaId: 20301, source: 'anilist' },
+        { mediaId: 20301, source: 'tmdb' },
+      ],
+    });
+
+    assert.strictEqual(res.status, 200);
+    assert.equal(res.body.results['anilist:20301'].isFavorited, true);
+    assert.equal(res.body.results['tmdb:20301'].isFavorited, false);
+  });
+
+  it('should return all-false results when unauthenticated', async () => {
+    const res = await request(app)
+      .post('/api/v1/favorites/check-batch')
+      .send({ items: [{ mediaId: 20401, source: 'tmdb' }] });
+
+    assert.strictEqual(res.status, 200);
+    assert.equal(res.body.results['tmdb:20401'].isFavorited, false);
+    assert.equal(res.body.results['tmdb:20401'].favoriteId, null);
+  });
+
+  it('should return empty results for an empty items array', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent
+      .post('/api/v1/favorites/check-batch')
+      .send({ items: [] });
+
+    assert.strictEqual(res.status, 200);
+    assert.deepEqual(res.body.results, {});
+  });
+
+  it('should reject invalid payloads with 400', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+
+    const nonArray = await adminAgent
+      .post('/api/v1/favorites/check-batch')
+      .send({ items: 'nope' });
+    assert.strictEqual(nonArray.status, 400);
+
+    const badSource = await adminAgent
+      .post('/api/v1/favorites/check-batch')
+      .send({ items: [{ mediaId: 20501, source: 'bogus' }] });
+    assert.strictEqual(badSource.status, 400);
+
+    const badMediaId = await adminAgent
+      .post('/api/v1/favorites/check-batch')
+      .send({ items: [{ mediaId: 'abc', source: 'tmdb' }] });
+    assert.strictEqual(badMediaId.status, 400);
+
+    const tooMany = await adminAgent
+      .post('/api/v1/favorites/check-batch')
+      .send({
+        items: Array.from({ length: 101 }, (_, i) => ({
+          mediaId: 21000 + i,
+          source: 'tmdb',
+        })),
+      });
+    assert.strictEqual(tooMany.status, 400);
   });
 });
