@@ -577,6 +577,13 @@ mediaRoutes.post<never, { results: Record<string, boolean> }>(
     let anyFailure = false;
     for (const item of parsed.data.items) {
       const key = `${item.type}:${item.tmdbId}`;
+      if (anyFailure) {
+        // The breaker was opened by an earlier item in this same batch —
+        // resolve the rest as unavailable immediately instead of paying
+        // another full timeout per item (DAN-101).
+        results[key] = false;
+        continue;
+      }
       const includeItemTypes =
         item.type === 'movie' ? 'Movie' : 'Series';
       try {
@@ -594,12 +601,11 @@ mediaRoutes.post<never, { results: Record<string, boolean> }>(
         });
         results[key] = false;
         anyFailure = true;
+        markJellyfinUnreachable();
       }
     }
 
-    if (anyFailure) {
-      markJellyfinUnreachable();
-    } else {
+    if (!anyFailure) {
       clearJellyfinUnreachable();
     }
 
