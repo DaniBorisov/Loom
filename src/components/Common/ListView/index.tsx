@@ -6,6 +6,10 @@ import {
   useFavoriteStatusBatch,
 } from '@app/hooks/useFavoriteStatus';
 import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
+import {
+  availabilityResultKey,
+  useJellyfinAvailabilityBatch,
+} from '@app/hooks/useJellyfinAvailability';
 import { Permission, useUser } from '@app/hooks/useUser';
 import useVerticalScroll from '@app/hooks/useVerticalScroll';
 import globalMessages from '@app/i18n/globalMessages';
@@ -52,6 +56,17 @@ const ListView = ({
   const blocklistVisibility = hasPermission(
     [Permission.MANAGE_BLOCKLIST, Permission.VIEW_BLOCKLIST],
     { type: 'or' }
+  );
+
+  // One batched availability request for the Plex-watchlist cards (DAN-98
+  // follow-up): without this each TmdbTitleCard fires its own request.
+  const { data: plexAvailability } = useJellyfinAvailabilityBatch(
+    plexItems?.length
+      ? plexItems.map((title) => ({
+          tmdbId: title.tmdbId,
+          type: title.mediaType,
+        }))
+      : undefined
   );
 
   // One batched favorite-status request for all rendered cards (DAN-99).
@@ -102,6 +117,11 @@ const ListView = ({
                 favoriteStatus={
                   favoriteData?.results[
                     favoriteStatusKey(title.tmdbId, 'tmdb')
+                  ] ?? null
+                }
+                libraryAvailable={
+                  plexAvailability?.results[
+                    availabilityResultKey(title.tmdbId, title.mediaType)
                   ] ?? null
                 }
               />

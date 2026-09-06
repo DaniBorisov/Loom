@@ -83,7 +83,7 @@ const RecentlyAddedSlider = () => {
             libraryAvailable={
               availabilityData?.results[
                 availabilityResultKey(item.tmdbId, item.mediaType)
-              ]
+              ] ?? null
             }
           />
         ))}

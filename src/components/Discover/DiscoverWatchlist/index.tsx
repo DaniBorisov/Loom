@@ -188,7 +188,7 @@ const DiscoverWatchlist = () => {
                     libraryAvailable={
                       availabilityData?.results[
                         availabilityResultKey(item.tmdbId, item.mediaType)
-                      ]
+                      ] ?? null
                     }
                   />
                 </li>

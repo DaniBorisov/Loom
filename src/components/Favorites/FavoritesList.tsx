@@ -142,7 +142,7 @@ const FavoritesList = () => {
                       item.mediaId,
                       item.mediaType as 'movie' | 'tv' | 'anime'
                     )
-                  ]
+                  ] ?? null
                 }
               />
             </li>
