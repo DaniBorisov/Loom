@@ -17,11 +17,12 @@ export interface TmdbTitleCardProps {
   mutateParent?: () => void;
   source?: 'tmdb' | 'anilist';
   /**
-   * Batch-provided availability (DAN-98). When set by a list parent that
-   * already fetched availability for all its items at once, the per-card
-   * request is skipped.
+   * Batch-provided availability (DAN-98). Tri-state: a boolean applies the
+   * parent's batched result with no request; `null` means a batch is
+   * pending (render without badge, no request); `undefined` (default)
+   * falls back to the single-item request.
    */
-  libraryAvailable?: boolean;
+  libraryAvailable?: boolean | null;
   /**
    * Batch-provided favorite status (DAN-99). Forwarded to TitleCard; see
    * its docs for the tri-state contract.
@@ -56,6 +57,9 @@ const TmdbTitleCard = ({
     inView ? `${url}` : null
   );
 
+  // Skipped whenever a list parent supplies `libraryAvailable` (boolean)
+  // or is still loading its batch (`null`) — tri-state suppression so
+  // cards never race the batch with per-card requests.
   const { data: libraryData } = useJellyfinAvailability(
     libraryAvailableOverride === undefined && title ? tmdbId : undefined,
     type
@@ -125,7 +129,7 @@ const TmdbTitleCard = ({
         mutateParent={mutateParent}
         source={source}
         favoriteStatus={favoriteStatus}
-        libraryAvailable={libraryData?.available}
+        libraryAvailable={libraryAvailable}
     />
   ) : (
     <TitleCard
@@ -145,7 +149,7 @@ const TmdbTitleCard = ({
         mutateParent={mutateParent}
         source={source}
         favoriteStatus={favoriteStatus}
-        libraryAvailable={libraryData?.available}
+        libraryAvailable={libraryAvailable}
     />
   );
 };

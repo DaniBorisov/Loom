@@ -429,7 +429,7 @@ const UserProfile = () => {
                   libraryAvailable={
                     profileWatchlistAvailability?.results[
                       availabilityResultKey(item.tmdbId, item.mediaType)
-                    ]
+                    ] ?? null
                   }
                 />
               ))}
@@ -465,7 +465,7 @@ const UserProfile = () => {
                   libraryAvailable={
                     recentlyWatchedAvailability?.results[
                       availabilityResultKey(item.tmdbId, item.mediaType)
-                    ]
+                    ] ?? null
                   }
                 />
               ))}
