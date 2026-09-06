@@ -512,6 +512,44 @@ describe('POST /media/jellyfin-check-batch (DAN-98)', () => {
     }
   });
 
+  it('short-circuits remaining items after the first failure within a batch (DAN-101)', async () => {
+    const { cleanup } = await setupJellyfinAdmin();
+    const lookupMock = mock.method(
+      JellyfinAPI.prototype as any,
+      'lookupByProviderId',
+      async () => {
+        throw new Error('timeout of 10000ms exceeded');
+      }
+    );
+
+    try {
+      const agent = await loginAs('admin@seerr.dev');
+      const res = await agent.post('/media/jellyfin-check-batch').send({
+        items: [
+          { tmdbId: 11111, type: 'movie' },
+          { tmdbId: 22222, type: 'tv' },
+          { tmdbId: 33333, type: 'anime' },
+        ],
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(res.body.results, {
+        'movie:11111': false,
+        'tv:22222': false,
+        'anime:33333': false,
+      });
+      // Only the first item pays the timeout; the rest resolve immediately.
+      assert.strictEqual(lookupMock.mock.callCount(), 1);
+      assert.ok(
+        cacheManager.getCache('jellyfin').data.get(JELLYFIN_UNREACHABLE_KEY),
+        'breaker flag should be set by the first failure'
+      );
+    } finally {
+      lookupMock.mock.restore();
+      await cleanup();
+    }
+  });
+
   it('returns 400 for an invalid body', async () => {
     const { cleanup } = await setupJellyfinAdmin();
 
