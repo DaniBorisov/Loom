@@ -56,6 +56,13 @@ const DiscoverWatchlist = () => {
 
   const [activeTab, setActiveTab] = useState<TabKey>('want_to_watch');
 
+  // Switching tabs always restarts pagination at page 1 (DAN-100):
+  // otherwise a `size` grown via "Load More" on one tab would make
+  // useSWRInfinite over-fetch pages on the newly selected tab.
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    setSize(1);
+  };
   const getKey = (
     pageIndex: number,
     previousPageData: WatchlistPageData | null
@@ -139,7 +146,7 @@ const DiscoverWatchlist = () => {
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.key
                 ? 'bg-indigo-600 text-white'
