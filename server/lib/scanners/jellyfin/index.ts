@@ -23,6 +23,10 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import {
+  isJellyfinUnreachable,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import { getHostname } from '@server/utils/getHostname';
 import { uniqWith } from 'lodash';
 
@@ -168,6 +172,9 @@ class JellyfinScanner
         });
       }
     } catch (e) {
+      if (isRequestTimeoutError(e)) {
+        markJellyfinUnreachable();
+      }
       this.log(
         `Failed to process Jellyfin item, id: ${jellyfinitem.Id}`,
         'error',
@@ -434,6 +441,9 @@ class JellyfinScanner
         );
       }
     } catch (e) {
+      if (isRequestTimeoutError(e)) {
+        markJellyfinUnreachable();
+      }
       this.log(
         `Failed to process Jellyfin item. Id: ${
           jellyfinitem.SeriesId ?? jellyfinitem.SeasonId ?? jellyfinitem.Id
@@ -445,6 +455,12 @@ class JellyfinScanner
   }
 
   private async processItem(item: JellyfinLibraryItem): Promise<void> {
+    // Abort remaining bundles as soon as an earlier failure opened the
+    // breaker (DAN-102). The throw propagates through loop() up to run(),
+    // which logs it and releases the running flag in its finally block.
+    if (isJellyfinUnreachable()) {
+      throw new Error('Jellyfin unreachable, aborting scan.');
+    }
     if (item.Type === 'Movie') {
       await this.processJellyfinMovie(item);
     } else if (item.Type === 'Series') {
@@ -459,6 +475,16 @@ class JellyfinScanner
       settings.main.mediaServerType != MediaServerType.JELLYFIN &&
       settings.main.mediaServerType != MediaServerType.EMBY
     ) {
+      return;
+    }
+
+    // Fail fast when Jellyfin is known unreachable (DAN-102): skip before
+    // startRun() so the running flag is never set.
+    if (isJellyfinUnreachable()) {
+      this.log(
+        'Jellyfin unreachable (circuit breaker open), skipping scan.',
+        'warn'
+      );
       return;
     }
 
@@ -534,11 +560,19 @@ class JellyfinScanner
         'info'
       );
     } catch (e) {
+      const timedOut = isRequestTimeoutError(e);
+      if (timedOut) {
+        markJellyfinUnreachable();
+      }
+      const aborting =
+        !timedOut && e.message.includes('aborting scan');
       this.log(
-        isRequestTimeoutError(e)
+        timedOut
           ? 'Sync interrupted: Jellyfin request timed out (host unreachable?), aborting this run'
-          : 'Sync interrupted',
-        'error',
+          : aborting
+            ? 'Jellyfin became unreachable mid-scan, aborting remaining items'
+            : 'Sync interrupted',
+        aborting ? 'warn' : 'error',
         { errorMessage: e.message }
       );
     } finally {

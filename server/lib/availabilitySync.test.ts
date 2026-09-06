@@ -28,6 +28,11 @@ import Media from '@server/entity/Media';
 import MediaRequest from '@server/entity/MediaRequest';
 import Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
+import cacheManager from '@server/lib/cache';
+import {
+  JELLYFIN_UNREACHABLE_KEY,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import { setupTestDb } from '@server/test/db';
@@ -424,6 +429,9 @@ function fakeSonarrSeasons(
 
 describe('AvailabilitySync', () => {
   beforeEach(async () => {
+    // Breaker state must not leak between tests: a marked flag would make
+    // later runs skip entirely.
+    cacheManager.getCache('jellyfin').data.del(JELLYFIN_UNREACHABLE_KEY);
     getSystemInfoImpl = async () => ({ ServerName: 'Test' });
     getItemDataImpl = async () => undefined;
     getSeasonsImpl = async () => [];
@@ -2306,6 +2314,55 @@ describe('AvailabilitySync', () => {
         MediaStatus.AVAILABLE,
         'Show should stay AVAILABLE when only specials were removed'
       );
+    });
+  });
+
+  describe('circuit breaker (DAN-102)', () => {
+    it('skips the run entirely when the breaker is already open', async () => {
+      configureJellyfin();
+      markJellyfinUnreachable();
+
+      let probeCalls = 0;
+      getSystemInfoImpl = async () => {
+        probeCalls += 1;
+        return { ServerName: 'Test' };
+      };
+
+      await availabilitySync.run();
+
+      assert.strictEqual(probeCalls, 0);
+      assert.strictEqual(availabilitySync.running, false);
+    });
+
+    it('marks the breaker and stops remaining items on mid-run timeout', async () => {
+      configureJellyfin();
+
+      const mediaRepository = getRepository(Media);
+      for (const tmdbId of [70101, 70102]) {
+        const media = new Media();
+        media.tmdbId = tmdbId;
+        media.mediaType = MediaType.MOVIE;
+        media.status = MediaStatus.AVAILABLE;
+        media.jellyfinMediaId = `jf-${tmdbId}`;
+        media.jellyfinMediaId4k = `jf4k-${tmdbId}`;
+        await mediaRepository.save(media);
+      }
+
+      let lookupCalls = 0;
+      getItemDataImpl = async () => {
+        lookupCalls += 1;
+        throw new Error('timeout of 10000ms exceeded');
+      };
+
+      await availabilitySync.run();
+
+      // Item 1 pays for its std + 4k checks; item 2 is never attempted.
+      assert.strictEqual(lookupCalls, 2);
+      assert.ok(
+        cacheManager.getCache('jellyfin').data.get(JELLYFIN_UNREACHABLE_KEY),
+        'breaker flag should be set by the first failure'
+      );
+      assert.strictEqual(availabilitySync.running, false);
     });
   });
 });

@@ -1,10 +1,15 @@
 import JellyfinAPI from '@server/api/jellyfin';
+import { isRequestTimeoutError } from '@server/api/externalapi';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { WatchedStatus } from '@server/entity/WatchedStatus';
 import { WatchlistStatus } from '@server/entity/Watchlist';
 import { syncWatchlistPlaybackState } from '@server/lib/jellyfinWatchedStatus';
+import {
+  isJellyfinUnreachable,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { getHostname } from '@server/utils/getHostname';
@@ -69,6 +74,17 @@ const ITEM_TYPE_TO_MEDIA_TYPE: Record<string, MediaType | undefined> = {
 export async function syncPlayedItems(
   user: User
 ): Promise<JellyfinWatchedSyncResult> {
+  // Fail fast when Jellyfin is known unreachable (DAN-102): the scheduler
+  // calls this per linked user, so without this each user would pay two
+  // full timeouts during an outage.
+  if (isJellyfinUnreachable()) {
+    logger.warn(
+      'Jellyfin unreachable (circuit breaker open), skipping watched sync.',
+      { label: 'Jellyfin Watched Sync', userId: user.id }
+    );
+    return { user: user.id, recorded: 0, skipped: 0, inProgress: 0 };
+  }
+
   const watchedStatusRepository = getRepository(WatchedStatus);
 
   const alreadyRecorded = new Set(
@@ -100,8 +116,14 @@ export async function syncPlayedItems(
   try {
     playedItems = await jellyfin.getPlayedItems();
   } catch (e) {
+    const timedOut = isRequestTimeoutError(e);
+    if (timedOut) {
+      markJellyfinUnreachable();
+    }
     logger.warn(
-      `Failed to fetch played items for Jellyfin user ${user.jellyfinUserId}`,
+      timedOut
+        ? `Fetching played items timed out for Jellyfin user ${user.jellyfinUserId} (host unreachable?)`
+        : `Failed to fetch played items for Jellyfin user ${user.jellyfinUserId}`,
       {
         label: 'Jellyfin Watched Sync',
         userId: user.id,
@@ -115,8 +137,14 @@ export async function syncPlayedItems(
   try {
     inProgressItems = await jellyfin.getInProgressItems();
   } catch (e) {
+    const timedOut = isRequestTimeoutError(e);
+    if (timedOut) {
+      markJellyfinUnreachable();
+    }
     logger.warn(
-      `Failed to fetch in-progress items for Jellyfin user ${user.jellyfinUserId}`,
+      timedOut
+        ? `Fetching in-progress items timed out for Jellyfin user ${user.jellyfinUserId} (host unreachable?)`
+        : `Failed to fetch in-progress items for Jellyfin user ${user.jellyfinUserId}`,
       {
         label: 'Jellyfin Watched Sync',
         userId: user.id,
