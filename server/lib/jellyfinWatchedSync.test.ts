@@ -11,12 +11,20 @@ import { WatchedStatus } from '@server/entity/WatchedStatus';
 import { Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
 import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
 import { getSettings } from '@server/lib/settings';
+import cacheManager from '@server/lib/cache';
+import {
+  JELLYFIN_UNREACHABLE_KEY,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import { setupTestDb } from '@server/test/db';
 
 setupTestDb();
 
 beforeEach(async () => {
   mock.restoreAll();
+
+  // Breaker state must not leak between tests.
+  cacheManager.getCache('jellyfin').data.del(JELLYFIN_UNREACHABLE_KEY);
 
   const settings = getSettings();
   settings.main.mediaServerType = MediaServerType.JELLYFIN;
@@ -403,5 +411,47 @@ describe('syncPlayedItems (fallback Jellyfin watched sync)', () => {
 
     assert.strictEqual(result.recorded, 0);
     assert.strictEqual(result.skipped, 0);
+  });
+
+  it('skips without calling Jellyfin when the breaker is open (DAN-102)', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+    markJellyfinUnreachable();
+
+    const playedMock = mock.method(
+      JellyfinAPI.prototype,
+      'getPlayedItems',
+      async () => {
+        throw new Error('should not be called');
+      }
+    );
+
+    const result = await syncPlayedItems(user);
+
+    assert.deepStrictEqual(result, {
+      user: user.id,
+      recorded: 0,
+      skipped: 0,
+      inProgress: 0,
+    });
+    // getPlayedItems is the first Jellyfin call; zero calls proves the run
+    // was skipped (getInProgressItems is only reached after it succeeds).
+    assert.strictEqual(playedMock.mock.callCount(), 0);
+  });
+
+  it('marks the breaker when fetching played items times out (DAN-102)', async () => {
+    const user = await getRepository(User).findOneOrFail({ where: { id: 1 } });
+
+    mock.method(JellyfinAPI.prototype, 'getPlayedItems', async () => {
+      throw new Error('timeout of 10000ms exceeded');
+    });
+
+    const result = await syncPlayedItems(user);
+
+    assert.strictEqual(result.recorded, 0);
+    assert.strictEqual(result.skipped, 0);
+    assert.ok(
+      cacheManager.getCache('jellyfin').data.get(JELLYFIN_UNREACHABLE_KEY),
+      'breaker flag should be set by the timeout'
+    );
   });
 });

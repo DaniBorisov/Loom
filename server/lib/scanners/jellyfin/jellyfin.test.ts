@@ -17,6 +17,11 @@ import Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import cacheManager from '@server/lib/cache';
+import {
+  JELLYFIN_UNREACHABLE_KEY,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import { setupTestDb } from '@server/test/db';
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
@@ -223,6 +228,8 @@ function configureJellyfinWithLibrary(
 
 describe('Jellyfin Scanner', () => {
   beforeEach(async () => {
+    // Breaker state must not leak between tests.
+    cacheManager.getCache('jellyfin').data.del(JELLYFIN_UNREACHABLE_KEY);
     getLibraryContentsImpl = async () => [];
     getItemDataImpl = async () => undefined;
     getSeasonsImpl = async () => [];
@@ -500,6 +507,62 @@ describe('Jellyfin Scanner', () => {
         MediaStatus.PARTIALLY_AVAILABLE,
         'Show should stay PARTIALLY_AVAILABLE when a DELETED season is missing from the metadata provider'
       );
+    });
+  });
+
+  describe('circuit breaker (DAN-102)', () => {
+    function fakeJellyfinMovieItem(id: string): JellyfinLibraryItem {
+      return {
+        Name: `Test Movie ${id}`,
+        Id: id,
+        Type: 'Movie',
+        HasSubtitles: false,
+        LocationType: 'FileSystem',
+        MediaType: 'Video',
+      };
+    }
+
+    it('skips the run without touching Jellyfin when the breaker is open', async () => {
+      configureJellyfinWithLibrary();
+      markJellyfinUnreachable();
+
+      let libraryCalls = 0;
+      getLibraryContentsImpl = async () => {
+        libraryCalls += 1;
+        return [];
+      };
+
+      await jellyfinFullScanner.run();
+
+      assert.strictEqual(libraryCalls, 0);
+      assert.strictEqual(jellyfinFullScanner.status().running, false);
+    });
+
+    it('aborts remaining bundles after mid-scan timeouts', async () => {
+      configureJellyfinWithLibrary();
+
+      // 25 items with the default bundle size of 20: the first bundle pays
+      // for its (concurrent) attempts, the second bundle must abort.
+      getLibraryContentsImpl = async () =>
+        Array.from(
+          { length: 25 },
+          (_, i) => fakeJellyfinMovieItem(`jf-movie-${i}`)
+        );
+
+      let itemCalls = 0;
+      getItemDataImpl = async () => {
+        itemCalls += 1;
+        throw new Error('timeout of 10000ms exceeded');
+      };
+
+      await jellyfinFullScanner.run();
+
+      assert.strictEqual(itemCalls, 20);
+      assert.ok(
+        cacheManager.getCache('jellyfin').data.get(JELLYFIN_UNREACHABLE_KEY),
+        'breaker flag should be set by the first failures'
+      );
+      assert.strictEqual(jellyfinFullScanner.status().running, false);
     });
   });
 });

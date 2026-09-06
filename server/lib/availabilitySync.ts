@@ -15,6 +15,11 @@ import Media from '@server/entity/Media';
 import MediaRequest from '@server/entity/MediaRequest';
 import type Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
+import {
+  clearJellyfinUnreachable,
+  isJellyfinUnreachable,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
@@ -51,6 +56,21 @@ class AvailabilitySync {
 
     const settings = getSettings();
     const mediaServerType = getSettings().main.mediaServerType;
+
+    // Fail fast when Jellyfin is known unreachable (DAN-102): skip the run
+    // before setting the running flag so no cleanup is needed.
+    if (
+      (mediaServerType === MediaServerType.JELLYFIN ||
+        mediaServerType === MediaServerType.EMBY) &&
+      isJellyfinUnreachable()
+    ) {
+      logger.warn(
+        'Jellyfin unreachable (circuit breaker open), skipping availability sync.',
+        { label: 'AvailabilitySync' }
+      );
+      return;
+    }
+
     this.running = true;
     this.plexSeasonsCache = {};
     this.plexEpisodeExistsCache = {};
@@ -111,7 +131,12 @@ class AvailabilitySync {
 
             try {
               await this.jellyfinClient.getSystemInfo();
+              // Probe succeeded — Jellyfin is reachable, clear any stale flag.
+              clearJellyfinUnreachable();
             } catch (e) {
+              // Total outage detected at the probe: open the breaker now so
+              // the routes and other jobs skip immediately (DAN-102).
+              markJellyfinUnreachable();
               logger.error(
                 isRequestTimeoutError(e)
                   ? `Sync interrupted: Jellyfin request timed out after ${getSettings().network.apiRequestTimeout}ms (host unreachable?).`
@@ -144,6 +169,20 @@ class AvailabilitySync {
       for await (const media of this.loadAvailableMediaPaginated(pageSize)) {
         if (!this.running) {
           throw new Error('Job aborted');
+        }
+
+        // Stop iterating once an earlier item opened the breaker (DAN-102):
+        // remaining items keep their current status, the run just ends early.
+        if (
+          (mediaServerType === MediaServerType.JELLYFIN ||
+            mediaServerType === MediaServerType.EMBY) &&
+          isJellyfinUnreachable()
+        ) {
+          logger.warn(
+            'Jellyfin became unreachable mid-sync, stopping remaining items.',
+            { label: 'AvailabilitySync' }
+          );
+          break;
         }
 
         // Check plex, radarr, and sonarr for that specific media and
@@ -1136,6 +1175,11 @@ class AvailabilitySync {
       }
     } catch (ex) {
       if (!ex.message.includes('404') && !ex.message.includes('500')) {
+        // Genuine Jellyfin failure (e.g. timeout): open the breaker so the
+        // run loop and other jobs stop paying per-item timeouts (DAN-102).
+        if (isRequestTimeoutError(ex)) {
+          markJellyfinUnreachable();
+        }
         existsInJellyfin = true;
         preventSeasonSearch = true;
         logger.debug(
