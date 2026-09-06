@@ -1,6 +1,10 @@
 import Slider from '@app/components/Slider';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
+import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,
 } from '@app/hooks/useJellyfinAvailability';
@@ -35,6 +39,16 @@ const RecentlyAddedSlider = () => {
       : undefined
   );
 
+  // One batched favorite-status request for all rendered cards (DAN-99).
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    sliderItems.length
+      ? sliderItems.map((item) => ({
+          mediaId: item.tmdbId,
+          source: 'tmdb' as const,
+        }))
+      : undefined
+  );
+
   if (
     (media && !media.results.length && !mediaError) ||
     !hasPermission([Permission.MANAGE_REQUESTS, Permission.RECENT_VIEW], {
@@ -61,6 +75,11 @@ const RecentlyAddedSlider = () => {
             tmdbId={item.tmdbId}
             tvdbId={item.tvdbId}
             type={item.mediaType}
+            favoriteStatus={
+              favoriteData?.results[
+                favoriteStatusKey(item.tmdbId, 'tmdb')
+              ] ?? null
+            }
             libraryAvailable={
               availabilityData?.results[
                 availabilityResultKey(item.tmdbId, item.mediaType)

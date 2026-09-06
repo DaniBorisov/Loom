@@ -7,6 +7,10 @@ import Slider from '@app/components/Slider';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import ProfileHeader from '@app/components/UserProfile/ProfileHeader';
 import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
+import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,
 } from '@app/hooks/useJellyfinAvailability';
@@ -124,6 +128,25 @@ const UserProfile = () => {
           }))
         : undefined
     );
+
+  // Batched favorite status for both sliders below (DAN-99).
+  const { data: profileWatchlistFavorites } = useFavoriteStatusBatch(
+    profileWatchlistEntries.length
+      ? profileWatchlistEntries.map((item) => ({
+          mediaId: item.tmdbId,
+          source: 'tmdb' as const,
+        }))
+      : undefined
+  );
+
+  const { data: recentlyWatchedFavorites } = useFavoriteStatusBatch(
+    recentlyWatchedEntries.length
+      ? recentlyWatchedEntries.map((item) => ({
+          mediaId: item.tmdbId,
+          source: 'tmdb' as const,
+        }))
+      : undefined
+  );
 
   const updateAvailableTitles = useCallback(
     (requestId: number, mediaTitle: MediaTitle) => {
@@ -398,6 +421,11 @@ const UserProfile = () => {
                   key={`watchlist-slider-item-${item.ratingKey}`}
                   tmdbId={item.tmdbId}
                   type={item.mediaType}
+                  favoriteStatus={
+                    profileWatchlistFavorites?.results[
+                      favoriteStatusKey(item.tmdbId, 'tmdb')
+                    ] ?? null
+                  }
                   libraryAvailable={
                     profileWatchlistAvailability?.results[
                       availabilityResultKey(item.tmdbId, item.mediaType)
@@ -429,6 +457,11 @@ const UserProfile = () => {
                   tmdbId={item.tmdbId}
                   tvdbId={item.tvdbId}
                   type={item.mediaType}
+                  favoriteStatus={
+                    recentlyWatchedFavorites?.results[
+                      favoriteStatusKey(item.tmdbId, 'tmdb')
+                    ] ?? null
+                  }
                   libraryAvailable={
                     recentlyWatchedAvailability?.results[
                       availabilityResultKey(item.tmdbId, item.mediaType)

@@ -1,6 +1,11 @@
 import PersonCard from '@app/components/PersonCard';
 import TitleCard from '@app/components/TitleCard';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
+import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import { Permission, useUser } from '@app/hooks/useUser';
 import useVerticalScroll from '@app/hooks/useVerticalScroll';
 import globalMessages from '@app/i18n/globalMessages';
@@ -49,6 +54,33 @@ const ListView = ({
     { type: 'or' }
   );
 
+  // One batched favorite-status request for all rendered cards (DAN-99).
+  // Keys must mirror the (id, source) each card below checks with.
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    items?.length || plexItems?.length
+      ? [
+          ...(plexItems ?? []).map((title) => ({
+            mediaId: title.tmdbId,
+            source: 'tmdb' as const,
+          })),
+          ...(items ?? []).flatMap((title): FavoriteStatusBatchItem[] => {
+            if (title.mediaType === 'person') {
+              return [];
+            }
+            if (title.mediaType === 'anime') {
+              return [
+                {
+                  mediaId: (title as AnimeResult).sourceId ?? title.id,
+                  source: 'anilist' as const,
+                },
+              ];
+            }
+            return [{ mediaId: title.id, source: 'tmdb' as const }];
+          }),
+        ]
+      : undefined
+  );
+
   return (
     <>
       {isEmpty && (
@@ -67,6 +99,11 @@ const ListView = ({
                 isAddedToWatchlist={true}
                 canExpand
                 mutateParent={mutateParent}
+                favoriteStatus={
+                  favoriteData?.results[
+                    favoriteStatusKey(title.tmdbId, 'tmdb')
+                  ] ?? null
+                }
               />
             </li>
           );
@@ -103,6 +140,11 @@ const ListView = ({
                       (title.mediaInfo?.downloadStatus ?? []).length > 0
                     }
                     canExpand
+                    favoriteStatus={
+                      favoriteData?.results[
+                        favoriteStatusKey(title.id, 'tmdb')
+                      ] ?? null
+                    }
                   />
                 );
                 break;
@@ -125,6 +167,11 @@ const ListView = ({
                       (title.mediaInfo?.downloadStatus ?? []).length > 0
                     }
                     canExpand
+                    favoriteStatus={
+                      favoriteData?.results[
+                        favoriteStatusKey(title.id, 'tmdb')
+                      ] ?? null
+                    }
                   />
                 );
                 break;
@@ -148,6 +195,14 @@ const ListView = ({
                     }
                     canExpand
                     source="anilist"
+                    favoriteStatus={
+                      favoriteData?.results[
+                        favoriteStatusKey(
+                          (title as AnimeResult).sourceId ?? title.id,
+                          'anilist'
+                        )
+                      ] ?? null
+                    }
                   />
                 );
                 break;
@@ -160,6 +215,11 @@ const ListView = ({
                     title={title.title}
                     mediaType={title.mediaType}
                     canExpand
+                    favoriteStatus={
+                      favoriteData?.results[
+                        favoriteStatusKey(title.id, 'tmdb')
+                      ] ?? null
+                    }
                   />
                 );
                 break;

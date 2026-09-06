@@ -1,4 +1,5 @@
 import TitleCard from '@app/components/TitleCard';
+import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
 import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import { Permission, useUser } from '@app/hooks/useUser';
 import type { MovieDetails } from '@server/models/Movie';
@@ -21,6 +22,11 @@ export interface TmdbTitleCardProps {
    * request is skipped.
    */
   libraryAvailable?: boolean;
+  /**
+   * Batch-provided favorite status (DAN-99). Forwarded to TitleCard; see
+   * its docs for the tri-state contract.
+   */
+  favoriteStatus?: FavoriteStatusResult | null;
 }
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
@@ -37,6 +43,7 @@ const TmdbTitleCard = ({
   mutateParent,
   source = 'tmdb',
   libraryAvailable: libraryAvailableOverride,
+  favoriteStatus,
 }: TmdbTitleCardProps) => {
   const { hasPermission } = useUser();
 
@@ -94,6 +101,7 @@ const TmdbTitleCard = ({
         canExpand={canExpand}
         mutateParent={mutateParent}
         source={source}
+        favoriteStatus={favoriteStatus}
         libraryAvailable={libraryAvailable}
       />
     );
@@ -112,11 +120,12 @@ const TmdbTitleCard = ({
       title={title.title}
       userScore={title.voteAverage}
       year={title.releaseDate}
-      mediaType={'movie'}
-      canExpand={canExpand}
-      mutateParent={mutateParent}
-      source={source}
-      libraryAvailable={libraryData?.available}
+        mediaType={'movie'}
+        canExpand={canExpand}
+        mutateParent={mutateParent}
+        source={source}
+        favoriteStatus={favoriteStatus}
+        libraryAvailable={libraryData?.available}
     />
   ) : (
     <TitleCard
@@ -131,11 +140,12 @@ const TmdbTitleCard = ({
       title={title.name}
       userScore={title.voteAverage}
       year={title.firstAirDate}
-      mediaType={'tv'}
-      canExpand={canExpand}
-      mutateParent={mutateParent}
-      source={source}
-      libraryAvailable={libraryData?.available}
+        mediaType={'tv'}
+        canExpand={canExpand}
+        mutateParent={mutateParent}
+        source={source}
+        favoriteStatus={favoriteStatus}
+        libraryAvailable={libraryData?.available}
     />
   );
 };

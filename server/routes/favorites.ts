@@ -4,7 +4,7 @@ import { Favorite, FavoriteSource } from '@server/entity/Favorite';
 import { favoriteCreate } from '@server/interfaces/api/favoriteCreate';
 import logger from '@server/logger';
 import { Router } from 'express';
-import { QueryFailedError } from 'typeorm';
+import { In, QueryFailedError } from 'typeorm';
 
 const favoritesRoutes = Router();
 
@@ -154,6 +154,91 @@ favoritesRoutes.get('/check', async (req, res, next) => {
       isFavorited: !!existing,
       favoriteId: existing?.id ?? null,
     });
+  } catch (error) {
+    return next({ status: 500, message: (error as Error).message });
+  }
+});
+
+const MAX_FAVORITE_BATCH_ITEMS = 100;
+
+interface FavoriteStatusResult {
+  isFavorited: boolean;
+  favoriteId: number | null;
+}
+
+/**
+ * Batched favorite-status check (DAN-99): one request for N cards instead
+ * of N per-card GET /check requests. A single `IN (...)` query against the
+ * Favorite table rather than N separate lookups.
+ */
+favoritesRoutes.post<
+  never,
+  { results: Record<string, FavoriteStatusResult> }
+>('/check-batch', async (req, res, next) => {
+  try {
+    const rawItems = req.body?.items;
+    const items = Array.isArray(rawItems) ? rawItems : [];
+    const results: Record<string, FavoriteStatusResult> = {};
+    const allFalse = () => {
+      for (const item of items) {
+        const mediaId = Number(item?.mediaId);
+        if (Number.isFinite(mediaId) && typeof item?.source === 'string') {
+          results[`${item.source}:${mediaId}`] = {
+            isFavorited: false,
+            favoriteId: null,
+          };
+        }
+      }
+      return res.json({ results });
+    };
+
+    if (!req.user) {
+      return allFalse();
+    }
+
+    if (!Array.isArray(rawItems) || rawItems.length > MAX_FAVORITE_BATCH_ITEMS) {
+      return next({
+        status: 400,
+        message: 'items must be an array with at most 100 entries.',
+      });
+    }
+
+    const validSources = Object.values(FavoriteSource);
+    for (const item of rawItems) {
+      const mediaId = Number(item?.mediaId);
+      if (
+        !item ||
+        !Number.isFinite(mediaId) ||
+        !validSources.includes(item?.source)
+      ) {
+        return next({
+          status: 400,
+          message:
+            'Each item must have a numeric mediaId and a valid source.',
+        });
+      }
+    }
+
+    const mediaIds = [...new Set(rawItems.map((item) => Number(item.mediaId)))];
+    const found = mediaIds.length
+      ? await getRepository(Favorite).find({
+          where: { userId: req.user.id, mediaId: In(mediaIds) },
+        })
+      : [];
+    const byKey = new Map(
+      found.map((favorite) => [`${favorite.source}:${favorite.mediaId}`, favorite])
+    );
+
+    for (const item of rawItems) {
+      const key = `${item.source}:${Number(item.mediaId)}`;
+      const match = byKey.get(key);
+      results[key] = {
+        isFavorited: !!match,
+        favoriteId: match?.id ?? null,
+      };
+    }
+
+    return res.json({ results });
   } catch (error) {
     return next({ status: 500, message: (error as Error).message });
   }

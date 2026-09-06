@@ -2,6 +2,11 @@ import ShowMoreCard from '@app/components/MediaSlider/ShowMoreCard';
 import PersonCard from '@app/components/PersonCard';
 import Slider from '@app/components/Slider';
 import TitleCard from '@app/components/TitleCard';
+import {
+  favoriteStatusKey,
+  useFavoriteStatusBatch,
+} from '@app/hooks/useFavoriteStatus';
+import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import useSettings from '@app/hooks/useSettings';
 import { useUser } from '@app/hooks/useUser';
 import { ArrowRightCircleIcon } from '@heroicons/react/24/outline';
@@ -103,6 +108,27 @@ const MediaSlider = ({
     }
   }, [titles, setSize, size, data, onNewTitles]);
 
+  // One batched favorite-status request for all rendered cards (DAN-99).
+  // Must stay above the early return below to keep hook order stable.
+  const { data: favoriteData } = useFavoriteStatusBatch(
+    titles.length
+      ? titles.flatMap((title): FavoriteStatusBatchItem[] => {
+          if (title.mediaType === 'person') {
+            return [];
+          }
+          if (title.mediaType === 'anime') {
+            return [
+              {
+                mediaId: (title as AnimeResult).sourceId ?? title.id,
+                source: 'anilist' as const,
+              },
+            ];
+          }
+          return [{ mediaId: title.id, source: 'tmdb' as const }];
+        })
+      : undefined
+  );
+
   if (hideWhenEmpty && (data?.[0].results ?? []).length === 0) {
     return null;
   }
@@ -138,6 +164,14 @@ const MediaSlider = ({
             mediaType="anime"
             inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
             source="anilist"
+            favoriteStatus={
+              favoriteData?.results[
+                favoriteStatusKey(
+                  (title as AnimeResult).sourceId ?? title.id,
+                  'anilist'
+                )
+              ] ?? null
+            }
           />
         );
       }
@@ -157,6 +191,10 @@ const MediaSlider = ({
               year={title.releaseDate}
               mediaType={title.mediaType}
               inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
+              favoriteStatus={
+                favoriteData?.results[favoriteStatusKey(title.id, 'tmdb')] ??
+                null
+              }
             />
           );
         case 'tv':
@@ -173,6 +211,10 @@ const MediaSlider = ({
               year={title.firstAirDate}
               mediaType={title.mediaType}
               inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
+              favoriteStatus={
+                favoriteData?.results[favoriteStatusKey(title.id, 'tmdb')] ??
+                null
+              }
             />
           );
         case 'person':

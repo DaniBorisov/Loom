@@ -9,6 +9,8 @@ import RequestModal from '@app/components/RequestModal';
 import ErrorCard from '@app/components/TitleCard/ErrorCard';
 import Placeholder from '@app/components/TitleCard/Placeholder';
 import { useIsTouch } from '@app/hooks/useIsTouch';
+import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
+import { useFavoriteStatus } from '@app/hooks/useFavoriteStatus';
 import useToasts from '@app/hooks/useToasts';
 import { Permission, UserType, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
@@ -48,6 +50,13 @@ interface TitleCardProps {
   mutateParent?: () => void;
   source?: 'tmdb' | 'anilist';
   libraryAvailable?: boolean;
+  /**
+   * Batch-provided favorite status (DAN-99). Tri-state: an object applies
+   * the parent's batched result with no request; `null` means a batch is
+   * pending (render unfavorited, no request); `undefined` (default) falls
+   * back to the single-item SWR check.
+   */
+  favoriteStatus?: FavoriteStatusResult | null;
 }
 
 const messages = defineMessages('components.TitleCard', {
@@ -81,6 +90,7 @@ const TitleCard = ({
   mutateParent,
   source = 'tmdb',
   libraryAvailable = false,
+  favoriteStatus: favoriteStatusOverride,
 }: TitleCardProps) => {
   const isTouch = useIsTouch();
   const intl = useIntl();
@@ -106,23 +116,23 @@ const TitleCard = ({
     setCurrentStatus(status);
   }, [status]);
 
+  // Single-item check as SWR (DAN-99): deduped across duplicate cards.
+  // Skipped whenever a list parent supplies `favoriteStatus` (object) or is
+  // still loading its batch (`null`).
+  const { data: favoriteData } = useFavoriteStatus(
+    favoriteStatusOverride === undefined ? id : undefined,
+    source
+  );
+
   useEffect(() => {
-    if (!id) return;
-    const checkFavorite = async () => {
-      try {
-        const res = await axios.get(
-          `/api/v1/favorites/check?mediaId=${id}&source=${source}`
-        );
-        setIsFavorited(res.data.isFavorited);
-        if (res.data.favoriteId) {
-          setFavoriteId(res.data.favoriteId);
-        }
-      } catch {
-        // Ignore - default to not favorited
-      }
-    };
-    checkFavorite();
-  }, [id, source]);
+    if (favoriteStatusOverride !== undefined) {
+      setIsFavorited(favoriteStatusOverride?.isFavorited ?? false);
+      setFavoriteId(favoriteStatusOverride?.favoriteId ?? null);
+    } else if (favoriteData) {
+      setIsFavorited(favoriteData.isFavorited);
+      setFavoriteId(favoriteData.favoriteId);
+    }
+  }, [favoriteStatusOverride, favoriteData]);
 
   const onClickFavoriteBtn = async (): Promise<void> => {
     try {

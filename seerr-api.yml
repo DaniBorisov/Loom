@@ -5268,6 +5268,55 @@ paths:
                   favoriteId:
                     type: number
                     nullable: true
+  /favorites/check-batch:
+    post:
+      summary: Check favorite status (batch)
+      description: 'Checks whether multiple media items are favorited by the requesting user in a single request. Returns { results } keyed by "<source>:<mediaId>". Requires authentication.'
+      tags:
+        - favorites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required:
+                      - mediaId
+                      - source
+                    properties:
+                      mediaId:
+                        type: number
+                      source:
+                        type: string
+                        enum: [tmdb, anilist, tvdb]
+      responses:
+        '200':
+          description: Favorite status results keyed by "<source>:<mediaId>"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        isFavorited:
+                          type: boolean
+                        favoriteId:
+                          type: number
+                          nullable: true
+        '400':
+          description: Invalid request body
   /favorites/{id}:
     delete:
       summary: Remove a favorite
