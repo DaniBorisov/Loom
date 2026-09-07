@@ -2231,6 +2231,30 @@ paths:
           description: Notification accepted
         '401':
           description: Invalid or missing webhook secret
+  /webhook/sonarr:
+    post:
+      summary: Receive Sonarr download webhooks
+      description: 'Receives Download notifications from Sonarr. Authenticated via the X-Webhook-Secret header, which must match the SONARR_WEBHOOK_SECRET environment variable. Resolves the series to a TMDB ID and fans out "available in library" pushes to users with a matching watchlist row. Always answers 200 quickly; the trigger runs in the background.'
+      security: []
+      tags:
+        - public
+      responses:
+        '200':
+          description: Notification accepted
+        '401':
+          description: Invalid or missing webhook secret
+  /webhook/radarr:
+    post:
+      summary: Receive Radarr download webhooks
+      description: 'Receives Download notifications from Radarr. Authenticated via the X-Webhook-Secret header, which must match the RADARR_WEBHOOK_SECRET environment variable. Fans out "available in library" pushes to users with a matching watchlist row. Always answers 200 quickly; the trigger runs in the background.'
+      security: []
+      tags:
+        - public
+      responses:
+        '200':
+          description: Notification accepted
+        '401':
+          description: Invalid or missing webhook secret
   /status:
     get:
       summary: Get Seerr status
