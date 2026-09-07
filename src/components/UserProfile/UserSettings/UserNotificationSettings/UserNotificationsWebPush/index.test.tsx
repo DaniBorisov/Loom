@@ -111,6 +111,7 @@ beforeEach(() => {
           pushoverUserKey: '',
           telegramChatId: '',
           telegramSendSilently: false,
+          defaultNotifyOn: 'both',
         },
         error: undefined,
         mutate: vi.fn(),
@@ -221,5 +222,63 @@ describe('UserNotificationsWebPush permission flow (DAN-44)', () => {
       expect(screen.getByText('Notifications are blocked')).toBeTruthy();
     });
     expect(pushManagerMock.subscribe).not.toHaveBeenCalled();
+  });
+});
+
+describe('default notifyOn global setting (DAN-48)', () => {
+  const settingsWithDefault = (defaultNotifyOn: string) => {
+    mockedUseSWR.mockImplementation((url: string) => {
+      if (url.includes('/settings/notifications')) {
+        return {
+          data: {
+            notificationTypes: { webpush: 2 },
+            pgpKey: '',
+            discordIds: [],
+            pushbulletAccessToken: '',
+            pushoverApplicationToken: '',
+            pushoverUserKey: '',
+            telegramChatId: '',
+            telegramSendSilently: false,
+            defaultNotifyOn,
+          },
+          error: undefined,
+          mutate: vi.fn(),
+        };
+      }
+      return { data: [], mutate: vi.fn() };
+    });
+  };
+
+  it('reflects the server default on load', async () => {
+    settingsWithDefault('none');
+    renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('notify-on-selector')).toBeTruthy();
+    });
+    expect(
+      (screen.getByTestId('notify-on-selector') as HTMLSelectElement).value
+    ).toBe('none');
+  });
+
+  it('persists a changed default on save', async () => {
+    settingsWithDefault('both');
+    renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('notify-on-selector')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByTestId('notify-on-selector'), {
+      target: { value: 'episode_airing' },
+    });
+    fireEvent.click(screen.getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/v1/user/1/settings/notifications',
+        expect.objectContaining({ defaultNotifyOn: 'episode_airing' })
+      );
+    });
   });
 });

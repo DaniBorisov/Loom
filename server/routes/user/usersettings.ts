@@ -6,6 +6,7 @@ import { UserType } from '@server/constants/user';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { UserSettings } from '@server/entity/UserSettings';
+import { NotifyOn } from '@server/entity/Watchlist';
 import type {
   UserSettingsGeneralResponse,
   UserSettingsNotificationsResponse,
@@ -680,6 +681,8 @@ userSettingsRoutes.get<{ id: string }, UserSettingsNotificationsResponse>(
         telegramSendSilently: user.settings?.telegramSendSilently,
         webPushEnabled: settings.webpush.enabled,
         notificationTypes: user.settings?.notificationTypes ?? {},
+        defaultNotifyOn:
+          user.settings?.defaultNotifyOn ?? NotifyOn.BOTH,
       });
     } catch (e) {
       next({ status: 500, message: e.message });
@@ -713,6 +716,19 @@ userSettingsRoutes.post<{ id: string }, UserSettingsNotificationsResponse>(
       const discordIds =
         req.body.discordIds?.filter((id: string) => id !== '') ?? [];
 
+      // Global default for new watchlist adds (DAN-48). Falls back to BOTH
+      // when omitted; rejects anything outside the enum.
+      const defaultNotifyOn =
+        req.body.defaultNotifyOn === undefined
+          ? (user.settings?.defaultNotifyOn ?? NotifyOn.BOTH)
+          : req.body.defaultNotifyOn;
+      if (!Object.values(NotifyOn).includes(defaultNotifyOn)) {
+        return next({
+          status: 400,
+          message: 'Invalid defaultNotifyOn value.',
+        });
+      }
+
       if (!user.settings) {
         user.settings = new UserSettings({
           user: req.user,
@@ -725,6 +741,7 @@ userSettingsRoutes.post<{ id: string }, UserSettingsNotificationsResponse>(
           telegramMessageThreadId: req.body.telegramMessageThreadId,
           telegramSendSilently: req.body.telegramSendSilently,
           notificationTypes: req.body.notificationTypes,
+          defaultNotifyOn,
         });
       } else {
         user.settings.pgpKey = req.body.pgpKey;
@@ -743,6 +760,7 @@ userSettingsRoutes.post<{ id: string }, UserSettingsNotificationsResponse>(
           user.settings.notificationTypes,
           req.body.notificationTypes
         );
+        user.settings.defaultNotifyOn = defaultNotifyOn;
       }
 
       await userRepository.save(user);
@@ -758,6 +776,7 @@ userSettingsRoutes.post<{ id: string }, UserSettingsNotificationsResponse>(
         telegramMessageThreadId: user.settings.telegramMessageThreadId,
         telegramSendSilently: user.settings.telegramSendSilently,
         notificationTypes: user.settings.notificationTypes,
+        defaultNotifyOn: user.settings.defaultNotifyOn,
       });
     } catch (e) {
       next({ status: 500, message: e.message });

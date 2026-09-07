@@ -1,5 +1,6 @@
 import TitleCard from '@app/components/TitleCard';
 import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
+import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import { Permission, useUser } from '@app/hooks/useUser';
 import type { MovieDetails } from '@server/models/Movie';
@@ -28,6 +29,12 @@ export interface TmdbTitleCardProps {
    * its docs for the tri-state contract.
    */
   favoriteStatus?: FavoriteStatusResult | null;
+  /**
+   * Watchlist row id + preference for the per-item override (DAN-48).
+   * Forwarded to TitleCard; only list parents with row data pass these.
+   */
+  watchlistId?: number;
+  notifyOn?: NotifyOnValue;
 }
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
@@ -45,6 +52,8 @@ const TmdbTitleCard = ({
   source = 'tmdb',
   libraryAvailable: libraryAvailableOverride,
   favoriteStatus,
+  watchlistId,
+  notifyOn,
 }: TmdbTitleCardProps) => {
   const { hasPermission } = useUser();
 
@@ -106,6 +115,8 @@ const TmdbTitleCard = ({
         mutateParent={mutateParent}
         source={source}
         favoriteStatus={favoriteStatus}
+        watchlistId={watchlistId}
+        notifyOn={notifyOn}
         libraryAvailable={libraryAvailable}
       />
     );
@@ -129,6 +140,8 @@ const TmdbTitleCard = ({
         mutateParent={mutateParent}
         source={source}
         favoriteStatus={favoriteStatus}
+        watchlistId={watchlistId}
+        notifyOn={notifyOn}
         libraryAvailable={libraryAvailable}
     />
   ) : (
@@ -149,6 +162,8 @@ const TmdbTitleCard = ({
         mutateParent={mutateParent}
         source={source}
         favoriteStatus={favoriteStatus}
+        watchlistId={watchlistId}
+        notifyOn={notifyOn}
         libraryAvailable={libraryAvailable}
     />
   );

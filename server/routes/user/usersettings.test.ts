@@ -132,3 +132,40 @@ describe('POST /user/:id/settings/linked-accounts/jellyfin/quickconnect', () => 
     assert.strictEqual(user.jellyfinUserId, null);
   });
 });
+
+describe('POST /user/:id/settings/notifications defaultNotifyOn (DAN-48)', () => {
+  it('persists the global default and returns it on GET', async () => {
+    const { agent, userId } = await loginAs('admin@seerr.dev', 'test1234');
+
+    const saved = await agent
+      .post(`/user/${userId}/settings/notifications`)
+      .send({ defaultNotifyOn: 'none' });
+    assert.strictEqual(saved.status, 200);
+    assert.strictEqual(saved.body.defaultNotifyOn, 'none');
+
+    const fetched = await agent.get(
+      `/user/${userId}/settings/notifications`
+    );
+    assert.strictEqual(fetched.status, 200);
+    assert.strictEqual(fetched.body.defaultNotifyOn, 'none');
+  });
+
+  it('defaults to both when never set', async () => {
+    const { agent, userId } = await loginAs('friend@seerr.dev', 'test1234');
+
+    const fetched = await agent.get(
+      `/user/${userId}/settings/notifications`
+    );
+    assert.strictEqual(fetched.status, 200);
+    assert.strictEqual(fetched.body.defaultNotifyOn, 'both');
+  });
+
+  it('rejects values outside the enum', async () => {
+    const { agent, userId } = await loginAs('admin@seerr.dev', 'test1234');
+
+    const res = await agent
+      .post(`/user/${userId}/settings/notifications`)
+      .send({ defaultNotifyOn: 'everything' });
+    assert.strictEqual(res.status, 400);
+  });
+});

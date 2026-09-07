@@ -85,6 +85,13 @@ export class UserSettings {
   @Column({ nullable: true })
   public watchlistSyncTv?: boolean;
 
+  /**
+   * Global default applied to new watchlist adds (DAN-48). Per-item
+   * `Watchlist.notifyOn` overrides take precedence over this value.
+   */
+  @Column({ type: 'varchar', default: 'both' })
+  public defaultNotifyOn: string;
+
   @Column({ nullable: true })
   public malSyncEnabled?: boolean;
 

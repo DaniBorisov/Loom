@@ -8,8 +8,10 @@ import { MediaRequest } from '@server/entity/MediaRequest';
 
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
+import { UserSettings } from '@server/entity/UserSettings';
 import {
   Watchlist,
+  NotifyOn,
   WatchlistStatus,
 } from '@server/entity/Watchlist';
 import { MediaType } from '@server/constants/media';
@@ -434,5 +436,119 @@ describe('Watchlist POST triggers auto-request (DAN-93)', () => {
       admin.jellyfinDeviceId = '';
       await userRepo.save(admin);
     }
+  });
+});
+
+describe('Watchlist notifyOn preferences (DAN-48)', () => {
+  before(() => {
+    // Clear the DAN-93 describe's unrestored mocks, then stub TMDB +
+    // Jellyfin behind the route once (mock.method cannot re-mock).
+    mock.restoreAll();
+    mock.method(ExternalAPI.prototype as never, 'get' as never, async () => ({
+      id: 72001,
+      external_ids: { tvdb_id: null },
+    }));
+    mock.method(
+      JellyfinAPI.prototype as never,
+      'lookupByProviderId' as never,
+      async () => null
+    );
+  });
+
+  async function setDefaultNotifyOn(email: string, value: string) {
+    const user = await getRepository(User).findOneByOrFail({ email });
+    const settingsRepo = getRepository(UserSettings);
+    let settings = await settingsRepo.findOne({
+      where: { user: { id: user.id } },
+    });
+    if (!settings) {
+      settings = new UserSettings({ user });
+    }
+    settings.defaultNotifyOn = value;
+    await settingsRepo.save(settings);
+  }
+
+  it('applies the user global default when POST omits notifyOn', async () => {
+    await setDefaultNotifyOn('admin@seerr.dev', NotifyOn.NONE);
+
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent
+      .post('/api/v1/watchlist')
+      .send({ tmdbId: 72001, mediaType: 'movie' });
+
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.body.notifyOn, NotifyOn.NONE);
+  });
+
+  it('lets an explicit notifyOn win over the global default', async () => {
+    await setDefaultNotifyOn('admin@seerr.dev', NotifyOn.NONE);
+
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent
+      .post('/api/v1/watchlist')
+      .send({ tmdbId: 72002, mediaType: 'movie', notifyOn: NotifyOn.BOTH });
+
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.body.notifyOn, NotifyOn.BOTH);
+  });
+
+  it('defaults to both when the user has no settings row', async () => {
+
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const res = await adminAgent
+      .post('/api/v1/watchlist')
+      .send({ tmdbId: 72003, mediaType: 'movie' });
+
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.body.notifyOn, NotifyOn.BOTH);
+  });
+
+  it('PATCHes a per-item notifyOn override', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const created = await adminAgent
+      .post('/api/v1/watchlist')
+      .send({ tmdbId: 72004, mediaType: 'movie' });
+    assert.strictEqual(created.status, 201);
+    assert.strictEqual(created.body.notifyOn, NotifyOn.BOTH);
+
+    const patched = await adminAgent
+      .patch(`/api/v1/watchlist/${created.body.id}`)
+      .send({ notifyOn: NotifyOn.EPISODE_AIRING });
+    assert.strictEqual(patched.status, 200);
+    assert.strictEqual(patched.body.notifyOn, NotifyOn.EPISODE_AIRING);
+
+    const row = await getRepository(Watchlist).findOneBy({
+      id: created.body.id,
+    });
+    assert.strictEqual(row?.notifyOn, NotifyOn.EPISODE_AIRING);
+  });
+
+  it('PATCHes status and notifyOn together', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+    const created = await adminAgent
+      .post('/api/v1/watchlist')
+      .send({ tmdbId: 72005, mediaType: 'movie' });
+    assert.strictEqual(created.status, 201);
+
+    const patched = await adminAgent
+      .patch(`/api/v1/watchlist/${created.body.id}`)
+      .send({ status: WatchlistStatus.WATCHING, notifyOn: NotifyOn.NONE });
+    assert.strictEqual(patched.status, 200);
+    assert.strictEqual(patched.body.status, WatchlistStatus.WATCHING);
+    assert.strictEqual(patched.body.notifyOn, NotifyOn.NONE);
+  });
+
+  it('PATCH rejects empty bodies and unknown rows', async () => {
+    const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
+
+    const empty = await adminAgent
+      .patch('/api/v1/watchlist/999999')
+      .send({});
+    assert.strictEqual(empty.status, 400);
+
+    const missing = await adminAgent
+      .patch('/api/v1/watchlist/999999')
+      .send({ notifyOn: NotifyOn.NONE });
+    assert.strictEqual(missing.status, 404);
   });
 });
