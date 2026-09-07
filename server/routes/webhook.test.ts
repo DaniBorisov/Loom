@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it, mock } from 'node:test';
 
 import JellyfinAPI from '@server/api/jellyfin';
 import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
+import TheMovieDb from '@server/api/themoviedb';
 import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
@@ -705,5 +706,79 @@ describe('POST /webhook/jellyfin', () => {
     });
     assert.ok(watchedStatus);
     assert.strictEqual(watchedStatus.mediaId, media.id);
+  });
+});
+
+describe('POST /webhook/sonarr and /webhook/radarr (DAN-46)', () => {
+  const SONARR_SECRET = 'test-sonarr-secret';
+  const RADARR_SECRET = 'test-radarr-secret';
+
+  before(() => {
+    process.env.SONARR_WEBHOOK_SECRET = SONARR_SECRET;
+    process.env.RADARR_WEBHOOK_SECRET = RADARR_SECRET;
+  });
+
+  after(() => {
+    delete process.env.SONARR_WEBHOOK_SECRET;
+    delete process.env.RADARR_WEBHOOK_SECRET;
+  });
+
+  it('rejects requests without a valid secret', async () => {
+    const noSecret = await request(app)
+      .post('/webhook/sonarr')
+      .send({ eventType: 'Download', series: { tvdbId: 1 } });
+    assert.strictEqual(noSecret.status, 401);
+
+    const wrongSecret = await request(app)
+      .post('/webhook/radarr')
+      .set('X-Webhook-Secret', 'wrong')
+      .send({ eventType: 'Download', movie: { tmdbId: 1 } });
+    assert.strictEqual(wrongSecret.status, 401);
+  });
+
+  it('ignores non-Download events with 200', async () => {
+    for (const [path, secret, body] of [
+      [
+        '/webhook/sonarr',
+        SONARR_SECRET,
+        { eventType: 'Test', series: { tvdbId: 1 } },
+      ],
+      [
+        '/webhook/radarr',
+        RADARR_SECRET,
+        { eventType: 'Grab', movie: { tmdbId: 1 } },
+      ],
+    ] as const) {
+      const res = await request(app)
+        .post(path)
+        .set('X-Webhook-Secret', secret)
+        .send(body);
+      assert.strictEqual(res.status, 200);
+    }
+  });
+
+  it('accepts Radarr Download events with 200', async () => {
+    const res = await request(app)
+      .post('/webhook/radarr')
+      .set('X-Webhook-Secret', RADARR_SECRET)
+      .send({ eventType: 'Download', movie: { tmdbId: 40101, title: 'T' } });
+    assert.strictEqual(res.status, 200);
+  });
+
+  it('accepts Sonarr Download events with 200 without live TMDB calls', async () => {
+    // Resolve locally so no upstream request is attempted.
+    Object.defineProperty(TheMovieDb.prototype, 'getShowByTvdbId', {
+      get() {
+        return async () => ({ id: 40201 });
+      },
+      set() {},
+      configurable: true,
+    });
+
+    const res = await request(app)
+      .post('/webhook/sonarr')
+      .set('X-Webhook-Secret', SONARR_SECRET)
+      .send({ eventType: 'Download', series: { tvdbId: 500, title: 'S' } });
+    assert.strictEqual(res.status, 200);
   });
 });

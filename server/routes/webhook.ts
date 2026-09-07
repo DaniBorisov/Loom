@@ -5,6 +5,10 @@ import { User } from '@server/entity/User';
 import { WatchlistStatus } from '@server/entity/Watchlist';
 import { syncWatchlistPlaybackState } from '@server/lib/jellyfinWatchedStatus';
 import { buildJellyfinClient } from '@server/lib/jellyfinWatchedSync';
+import {
+  notifyAvailableInLibrary,
+  resolveSonarrTmdbId,
+} from '@server/lib/notifications/availabilityPush';
 import logger from '@server/logger';
 import express, { Router } from 'express';
 
@@ -276,6 +280,99 @@ webhookRoutes.post('/jellyfin', jsonBodyParser, async (req, res) => {
       errorMessage: e.message,
     });
   }
+
+  return res.status(200).json({ status: 200 });
+});
+
+interface ServarrWebhookPayload {
+  eventType?: string;
+  series?: { title?: string; tvdbId?: number };
+  movie?: { title?: string; tmdbId?: number };
+}
+
+const checkServarrSecret = (
+  req: express.Request,
+  envVar: string
+): boolean => {
+  const configuredSecret = process.env[envVar] ?? '';
+  if (!configuredSecret) {
+    return false;
+  }
+  return req.header('X-Webhook-Secret') === configuredSecret;
+};
+
+/**
+ * Receives Download webhooks from Sonarr (DAN-46). Resolves the series
+ * tvdbId to a TMDB ID, then fans out "available in library" pushes to
+ * users with a matching watchlist row. Always answers 200 quickly — the
+ * trigger runs in the background — so Sonarr never retries the delivery.
+ */
+webhookRoutes.post('/sonarr', jsonBodyParser, async (req, res) => {
+  if (!checkServarrSecret(req, 'SONARR_WEBHOOK_SECRET')) {
+    logger.warn('Ignoring Sonarr webhook: invalid or missing secret');
+    return res.status(401).json({ status: 401, message: 'Invalid secret' });
+  }
+
+  const payload = (req.body ?? {}) as ServarrWebhookPayload;
+
+  if (payload.eventType !== 'Download' || !payload.series) {
+    return res.status(200).json({ status: 200 });
+  }
+
+  const tvdbId = Number(payload.series.tvdbId);
+  const title = payload.series.title ?? `TVDB ${payload.series.tvdbId}`;
+  if (!Number.isFinite(tvdbId)) {
+    return res.status(200).json({ status: 200 });
+  }
+
+  void (async () => {
+    const tmdbId = await resolveSonarrTmdbId(tvdbId);
+    if (!tmdbId) {
+      return;
+    }
+    await notifyAvailableInLibrary({ source: 'sonarr', tmdbId, title });
+  })().catch((e) => {
+    logger.error('Failed to process Sonarr download webhook', {
+      label: 'Sonarr Webhook',
+      errorMessage: (e as Error)?.message,
+    });
+  });
+
+  return res.status(200).json({ status: 200 });
+});
+
+/**
+ * Receives Download webhooks from Radarr (DAN-46). Same fan-out contract
+ * as /sonarr above; Radarr supplies the TMDB ID directly.
+ */
+webhookRoutes.post('/radarr', jsonBodyParser, async (req, res) => {
+  if (!checkServarrSecret(req, 'RADARR_WEBHOOK_SECRET')) {
+    logger.warn('Ignoring Radarr webhook: invalid or missing secret');
+    return res.status(401).json({ status: 401, message: 'Invalid secret' });
+  }
+
+  const payload = (req.body ?? {}) as ServarrWebhookPayload;
+
+  if (payload.eventType !== 'Download' || !payload.movie) {
+    return res.status(200).json({ status: 200 });
+  }
+
+  const tmdbId = Number(payload.movie.tmdbId);
+  const title = payload.movie.title ?? `TMDB ${payload.movie.tmdbId}`;
+  if (!Number.isFinite(tmdbId)) {
+    return res.status(200).json({ status: 200 });
+  }
+
+  void notifyAvailableInLibrary({
+    source: 'radarr',
+    tmdbId,
+    title,
+  }).catch((e) => {
+    logger.error('Failed to process Radarr download webhook', {
+      label: 'Radarr Webhook',
+      errorMessage: (e as Error)?.message,
+    });
+  });
 
   return res.status(200).json({ status: 200 });
 });
