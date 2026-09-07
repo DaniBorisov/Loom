@@ -117,9 +117,11 @@ const MediaSlider = ({
             return [];
           }
           if (title.mediaType === 'anime') {
+            // Card `id` is a resolved TMDB ID (DAN-103); `sourceId` keeps
+            // the original AniList ID for keys only.
             return [
               {
-                mediaId: (title as AnimeResult).sourceId ?? title.id,
+                mediaId: title.id,
                 source: 'anilist' as const,
               },
             ];
@@ -153,7 +155,7 @@ const MediaSlider = ({
         return (
           <TitleCard
             key={`anilist-${title.sourceId}`}
-            id={title.sourceId ?? title.id}
+            id={title.id}
             isAddedToWatchlist={title.mediaInfo?.watchlists?.length ?? 0}
             image={title.posterPath}
             status={title.mediaInfo?.status}
@@ -166,10 +168,7 @@ const MediaSlider = ({
             source="anilist"
             favoriteStatus={
               favoriteData?.results[
-                favoriteStatusKey(
-                  (title as AnimeResult).sourceId ?? title.id,
-                  'anilist'
-                )
+                favoriteStatusKey(title.id, 'anilist')
               ] ?? null
             }
           />

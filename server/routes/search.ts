@@ -53,29 +53,33 @@ searchRoutes.get('/', async (req, res, next) => {
     // Map TMDB results
     const mappedTmdb = tmdbResults ? mapSearchResults(tmdbResults.results) : [];
 
-    // Map AniList results
-    const mappedAnilist = anilistResults.map((r) => mapAniListResult(r));
+    // Map AniList results. Unmapped items resolve to null (no crosswalk
+    // TMDB ID) and are omitted rather than misrouted (DAN-103).
+    const mappedAnilist = anilistResults.flatMap((r) => {
+      const mapped = mapAniListResult(r);
+      return mapped ? [mapped] : [];
+    });
 
-    // Deduplicate: if an AniList result has a TMDB ID that appears in TMDB results, drop it
+    // Deduplicate: anime `id` is now a resolved TMDB ID, so drop results
+    // TMDB already returned (DAN-103).
     const tmdbIds = new Set(
       mappedTmdb
         .filter((r) => 'mediaType' in r && r.mediaType !== 'person')
         .map((r) => r.id)
     );
-    const dedupedAnilist = mappedAnilist.filter(
-      (r) => !tmdbIds.has(r.sourceId)
-    );
+    const dedupedAnilist = mappedAnilist.filter((r) => !tmdbIds.has(r.id));
 
     // Merge
     const allResults = [...mappedTmdb, ...dedupedAnilist];
 
-    // Fetch local media state for all results
+    // Fetch local media state for all results. Anime `id` is a resolved
+    // TMDB ID (DAN-103), so it is used directly for every source.
     const mediaItems = await Media.getRelatedMedia(
       req.user,
       allResults
         .filter((r) => 'mediaType' in r && r.mediaType !== 'person')
         .map((r) => ({
-          tmdbId: r.source === 'tmdb' ? r.id : (r.sourceId ?? r.id),
+          tmdbId: r.id,
           mediaType:
             r.mediaType === 'anime'
               ? MediaType.ANIME

@@ -13,6 +13,7 @@ import type {
   WatchlistResponse,
 } from '@server/interfaces/api/discoverInterfaces';
 import { getSettings } from '@server/lib/settings';
+import { resolveAnilistIdToTmdbId } from '@server/lib/animeResolve';
 import logger from '@server/logger';
 import { mapProductionCompany } from '@server/models/Movie';
 import {
@@ -1036,21 +1037,32 @@ discoverRoutes.get('/anime/trending', async (req, res, next) => {
       });
     }
 
-    const mapped = results.results.map((r) => ({
-      id: r.id,
-      mediaType: 'anime' as const,
-      title: r.title,
-      overview: r.overview,
-      posterPath: r.posterPath,
-      backdropPath: r.backdropPath,
-      popularity: r.averageScore,
-      voteAverage: r.averageScore / 10,
-      voteCount: r.averageScore,
-      source: 'anilist' as const,
-      sourceId: r.id,
-      genres: r.genres,
-      firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
-    }));
+    // Card `id` drives navigation and must be a TMDB ID. Items without a
+    // crosswalk mapping are omitted rather than misrouted on the raw
+    // AniList ID (DAN-103).
+    const mapped = results.results.flatMap((r) => {
+      const tmdbId = resolveAnilistIdToTmdbId(r.id);
+      if (!tmdbId) {
+        return [];
+      }
+      return [
+        {
+          id: tmdbId,
+          mediaType: 'anime' as const,
+          title: r.title,
+          overview: r.overview,
+          posterPath: r.posterPath,
+          backdropPath: r.backdropPath,
+          popularity: r.averageScore,
+          voteAverage: r.averageScore / 10,
+          voteCount: r.averageScore,
+          source: 'anilist' as const,
+          sourceId: r.id,
+          genres: r.genres,
+          firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
+        },
+      ];
+    });
 
     return res.status(200).json({
       page: results.pageInfo.currentPage,
@@ -1088,21 +1100,30 @@ discoverRoutes.get('/anime/seasonal', async (req, res, next) => {
       });
     }
 
-    const mapped = results.results.map((r) => ({
-      id: r.id,
-      mediaType: 'anime' as const,
-      title: r.title,
-      overview: r.overview,
-      posterPath: r.posterPath,
-      backdropPath: r.backdropPath,
-      popularity: r.averageScore,
-      voteAverage: r.averageScore / 10,
-      voteCount: r.averageScore,
-      source: 'anilist' as const,
-      sourceId: r.id,
-      genres: r.genres,
-      firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
-    }));
+    // Same TMDB-ID resolution as /anime/trending above (DAN-103).
+    const mapped = results.results.flatMap((r) => {
+      const tmdbId = resolveAnilistIdToTmdbId(r.id);
+      if (!tmdbId) {
+        return [];
+      }
+      return [
+        {
+          id: tmdbId,
+          mediaType: 'anime' as const,
+          title: r.title,
+          overview: r.overview,
+          posterPath: r.posterPath,
+          backdropPath: r.backdropPath,
+          popularity: r.averageScore,
+          voteAverage: r.averageScore / 10,
+          voteCount: r.averageScore,
+          source: 'anilist' as const,
+          sourceId: r.id,
+          genres: r.genres,
+          firstAirDate: r.seasonYear ? `${r.seasonYear}-01-01` : undefined,
+        },
+      ];
+    });
 
     return res.status(200).json({
       page: results.pageInfo.currentPage,
