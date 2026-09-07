@@ -100,6 +100,12 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.message,
+    // Stable tag per item so repeat pushes (e.g. daily polls) replace the
+    // previous card instead of stacking (DAN-49).
+    tag:
+      payload.notificationType && payload.actionUrl
+        ? `${payload.notificationType}:${payload.actionUrl}`
+        : undefined,
     badge: 'badge-128x128.png',
     icon: payload.image ? payload.image : 'android-chrome-192x192.png',
     vibrate: [100, 50, 100],
@@ -149,29 +155,53 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  event.waitUntil(self.registration.showNotification(payload.subject, options));
+  event.waitUntil(
+    self.registration.showNotification(payload.subject ?? 'Seerr', options)
+  );
 });
 
 self.addEventListener(
   'notificationclick',
   (event) => {
-    const notificationData = event.notification.data;
+    const notificationData = event.notification.data || {};
 
     event.notification.close();
 
-    if (event.action === 'approve') {
-      fetch(`/api/v1/request/${notificationData.requestId}/approve`, {
-        method: 'POST',
-      });
-    } else if (event.action === 'decline') {
-      fetch(`/api/v1/request/${notificationData.requestId}/decline`, {
-        method: 'POST',
-      });
-    }
+    // Await everything: an unterminated worker kills the navigation/fetch.
+    event.waitUntil(
+      (async () => {
+        if (event.action === 'approve') {
+          await fetch(`/api/v1/request/${notificationData.requestId}/approve`, {
+            method: 'POST',
+          });
+        } else if (event.action === 'decline') {
+          await fetch(`/api/v1/request/${notificationData.requestId}/decline`, {
+            method: 'POST',
+          });
+        }
 
-    if (notificationData.actionUrl) {
-      clients.openWindow(notificationData.actionUrl);
-    }
+        if (notificationData.actionUrl) {
+          // Focus the already-open app window on this item when there is
+          // one; only open a fresh window otherwise (DAN-49).
+          const allClients = await clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true,
+          });
+          const matching = allClients.find((client) => {
+            try {
+              return new URL(client.url).pathname === notificationData.actionUrl;
+            } catch {
+              return false;
+            }
+          });
+          if (matching && typeof matching.focus === 'function') {
+            await matching.focus();
+          } else {
+            await clients.openWindow(notificationData.actionUrl);
+          }
+        }
+      })()
+    );
   },
   false
 );
