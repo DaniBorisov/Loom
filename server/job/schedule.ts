@@ -7,6 +7,11 @@ import * as crosswalkSync from '@server/lib/crosswalkSync';
 import downloadTracker from '@server/lib/downloadtracker';
 import ImageProxy from '@server/lib/imageproxy';
 import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
+import {
+  cancelAiringCheck,
+  isAiringCheckRunning,
+  runAiringCheck,
+} from '@server/lib/notifications/airingPush';
 import * as malListSync from '@server/lib/malListSync';
 import refreshToken from '@server/lib/refreshToken';
 import {
@@ -313,6 +318,28 @@ export const startJobs = (): void => {
       crosswalkSync.run();
     }),
     running: () => crosswalkSync.isRunning(),
+  });
+
+  // Daily new-episode airing check (DAN-47)
+  scheduledJobs.push({
+    id: 'airing-push-sync',
+    name: 'Airing Push Sync',
+    type: 'process',
+    interval: 'days',
+    cronSchedule: jobs['airing-push-sync'].schedule,
+    job: schedule.scheduleJob(jobs['airing-push-sync'].schedule, () => {
+      logger.info('Starting scheduled job: Airing Push Sync', {
+        label: 'Jobs',
+      });
+      runAiringCheck().catch((e) => {
+        logger.error('Failed to run airing push sync', {
+          label: 'AiringPush',
+          errorMessage: (e as Error)?.message,
+        });
+      });
+    }),
+    running: () => isAiringCheckRunning(),
+    cancelFn: () => cancelAiringCheck(),
   });
 
   logger.info('Scheduled jobs loaded', { label: 'Jobs' });

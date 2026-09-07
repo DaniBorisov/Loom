@@ -373,7 +373,8 @@ export type JobId =
   | 'availability-sync'
   | 'process-blocklisted-tags'
   | 'mal-list-sync'
-  | 'crosswalk-refresh';
+  | 'crosswalk-refresh'
+  | 'airing-push-sync';
 
 export interface AllSettings {
   clientId: string;
@@ -621,6 +622,9 @@ class Settings {
         },
         'crosswalk-refresh': {
           schedule: '0 0 2 * * 0',
+        },
+        'airing-push-sync': {
+          schedule: '0 0 6 * * *',
         },
       },
       network: {
