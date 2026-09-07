@@ -11,11 +11,14 @@ import { useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import {
+  getNotificationPermissionState,
   getPushSubscription,
+  requestNotificationPermission,
   subscribeToPushNotifications,
   unsubscribeToPushNotifications,
   verifyPushSubscription,
 } from '@app/utils/pushSubscriptionHelpers';
+import type { NotificationPermissionState } from '@app/utils/pushSubscriptionHelpers';
 import { ArrowDownOnSquareIcon } from '@heroicons/react/24/outline';
 import {
   CloudArrowDownIcon,
@@ -48,6 +51,9 @@ const messages = defineMessages(
     webpushhasbeendisabled: 'Web push has been disabled.',
     enablingwebpusherror: 'Something went wrong while enabling web push.',
     disablingwebpusherror: 'Something went wrong while disabling web push.',
+    permissiondeniedtitle: 'Notifications are blocked',
+    permissiondeniedguidance:
+      'You have blocked notifications for this site, so the browser will not ask again. To enable web push, allow notifications in your browser site settings, then click Enable web push again.',
   }
 );
 
@@ -59,6 +65,10 @@ const UserWebPushSettings = () => {
   const { currentSettings } = useSettings();
   const [webPushEnabled, setWebPushEnabled] = useState(false);
   const [subEndpoint, setSubEndpoint] = useState<string | null>(null);
+  // Browser permission drives the enable flow (DAN-44): denied can never
+  // be re-prompted, so the UI guides to browser settings instead.
+  const [permission, setPermission] =
+    useState<NotificationPermissionState>(getNotificationPermissionState);
   const {
     data,
     error,
@@ -81,6 +91,24 @@ const UserWebPushSettings = () => {
   // Subscribes to the push manager
   // Will only add to the database if subscribing for the first time
   const enablePushNotifications = async () => {
+    // A denied permission cannot trigger the browser prompt — guide the
+    // user to browser settings instead of attempting a doomed subscribe.
+    const current = getNotificationPermissionState();
+    setPermission(current);
+    if (current === 'denied') {
+      return;
+    }
+
+    // `default` (not yet asked): this request shows the browser prompt.
+    // `granted`: resolves immediately without prompting.
+    if (current !== 'granted') {
+      const afterRequest = await requestNotificationPermission();
+      setPermission(afterRequest);
+      if (afterRequest !== 'granted') {
+        return;
+      }
+    }
+
     try {
       const isSubscribed = await subscribeToPushNotifications(
         user?.id,
@@ -247,6 +275,16 @@ const UserWebPushSettings = () => {
 
   return (
     <>
+      {permission === 'denied' && (
+        <div className="mb-6">
+          <Alert
+            title={intl.formatMessage(messages.permissiondeniedtitle)}
+            type="warning"
+          >
+            {intl.formatMessage(messages.permissiondeniedguidance)}
+          </Alert>
+        </div>
+      )}
       <Formik
         initialValues={{
           types: data?.notificationTypes.webpush ?? ALL_NOTIFICATIONS,

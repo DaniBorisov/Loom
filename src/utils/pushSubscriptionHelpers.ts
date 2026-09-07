@@ -24,6 +24,49 @@ export const getPushSubscription = async () => {
   return { registration, subscription };
 };
 
+export type NotificationPermissionState =
+  | 'granted'
+  | 'denied'
+  | 'default'
+  | 'unsupported';
+
+/**
+ * Current Notification permission without prompting (DAN-44). Returns
+ * 'unsupported' outside browsers or where the API is missing.
+ */
+export const getNotificationPermissionState =
+  (): NotificationPermissionState => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return 'unsupported';
+    }
+    return Notification.permission as
+      | 'granted'
+      | 'denied'
+      | 'default';
+  };
+
+/**
+ * Ask the browser for Notification permission (DAN-44). Resolves with the
+ * resulting state; a denied permission cannot be re-prompted, so callers
+ * must guide the user to browser settings instead of asking again.
+ */
+export const requestNotificationPermission =
+  async (): Promise<NotificationPermissionState> => {
+    if (
+      typeof window === 'undefined' ||
+      !('Notification' in window) ||
+      typeof Notification.requestPermission !== 'function'
+    ) {
+      return 'unsupported';
+    }
+    try {
+      const result = await Notification.requestPermission();
+      return result as 'granted' | 'denied' | 'default';
+    } catch {
+      return getNotificationPermissionState();
+    }
+  };
+
 export const verifyPushSubscription = async (
   userId: number | undefined,
   currentSettings: PublicSettingsResponse
