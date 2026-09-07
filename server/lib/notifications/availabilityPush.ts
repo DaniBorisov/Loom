@@ -33,6 +33,29 @@ export interface NotifyAvailabilityResult {
 }
 
 /**
+ * Configure web-push VAPID details from the admin user + settings (DAN-47
+ * shares this). Returns false when setup is impossible — callers skip
+ * sending. Never needed when tests inject their own `send`.
+ */
+export const ensureVapid = async (): Promise<boolean> => {
+  const admin = await getRepository(User).findOne({ where: { id: 1 } });
+  const settings = getSettings();
+  if (!admin || !settings.vapidPublic || !settings.vapidPrivate) {
+    logger.warn(
+      'Skipping availability push: VAPID keys or admin user missing',
+      { label: 'Notifications' }
+    );
+    return false;
+  }
+  webpush.setVapidDetails(
+    `mailto:${admin.email}`,
+    settings.vapidPublic,
+    settings.vapidPrivate
+  );
+  return true;
+};
+
+/**
  * Which watchlist media types a Servarr event can satisfy (DAN-46).
  * Radarr only ever yields movies; Sonarr series can back tv or anime rows.
  */
@@ -120,21 +143,8 @@ export const notifyAvailableInLibrary = async (
   const subRepository = getRepository(UserPushSubscription);
 
   // VAPID is only needed for real delivery, never for injected test sends.
-  if (!deps.send) {
-    const admin = await getRepository(User).findOne({ where: { id: 1 } });
-    const settings = getSettings();
-    if (!admin || !settings.vapidPublic || !settings.vapidPrivate) {
-      logger.warn(
-        'Skipping availability push: VAPID keys or admin user missing',
-        { label: 'Notifications' }
-      );
-      return result;
-    }
-    webpush.setVapidDetails(
-      `mailto:${admin.email}`,
-      settings.vapidPublic,
-      settings.vapidPrivate
-    );
+  if (!deps.send && !(await ensureVapid())) {
+    return result;
   }
 
   for (const [userId, { title, movie }] of byUser) {

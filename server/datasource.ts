@@ -2,6 +2,7 @@ import fs from 'fs';
 import type { TlsOptions } from 'tls';
 import type { DataSourceOptions, EntityTarget, Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
+import { AiringState } from './entity/AiringState';
 import { Blocklist } from './entity/Blocklist';
 import DiscoverSlider from './entity/DiscoverSlider';
 import { Favorite } from './entity/Favorite';
@@ -64,6 +65,7 @@ function buildSslConfig(): TlsOptions | undefined {
 }
 
 const testEntities = [
+  AiringState,
   Blocklist,
   DiscoverSlider,
   Favorite,
