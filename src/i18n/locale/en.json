@@ -1547,6 +1547,8 @@
   "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.managedevices": "Manage Devices",
   "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.nodevicestoshow": "You have no web push subscriptions to show.",
   "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.operatingsystem": "Operating System",
+  "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.permissiondeniedguidance": "You have blocked notifications for this site, so the browser will not ask again. To enable web push, allow notifications in your browser site settings, then click Enable web push again.",
+  "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.permissiondeniedtitle": "Notifications are blocked",
   "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.subscriptiondeleted": "Subscription deleted.",
   "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.subscriptiondeleteerror": "Something went wrong while deleting the user subscription.",
   "components.UserProfile.UserSettings.UserNotificationSettings.UserNotificationsWebPush.type": "type",
