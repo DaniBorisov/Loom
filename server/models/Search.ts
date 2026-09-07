@@ -10,6 +10,7 @@ import type {
 } from '@server/api/themoviedb/interfaces';
 import { MediaType as MainMediaType } from '@server/constants/media';
 import type Media from '@server/entity/Media';
+import { resolveAnilistIdToTmdbId } from '@server/lib/animeResolve';
 
 export type MediaType = 'tv' | 'movie' | 'person' | 'collection' | 'anime';
 
@@ -179,25 +180,34 @@ export const mapPersonResult = (
 export const mapAniListResult = (
   anilistResult: AniListSearchResult,
   media?: Media
-): AnimeResult => ({
-  id: anilistResult.id,
-  mediaType: 'anime',
-  title: anilistResult.title,
-  overview: anilistResult.overview,
-  posterPath: anilistResult.posterPath,
-  backdropPath: anilistResult.backdropPath,
-  popularity: anilistResult.averageScore,
-  voteAverage: anilistResult.averageScore / 10,
-  voteCount: anilistResult.averageScore,
-  genreIds: [],
-  originalLanguage: 'ja',
-  source: 'anilist',
-  sourceId: anilistResult.id,
-  firstAirDate: anilistResult.seasonYear
-    ? `${anilistResult.seasonYear}-01-01`
-    : undefined,
-  mediaInfo: media,
-});
+): AnimeResult | null => {
+  // The card `id` drives navigation (`/tv/{id}`), so it must be a TMDB ID.
+  // Unmapped items resolve to null and callers omit them rather than
+  // misrouting on the raw AniList ID (DAN-103).
+  const tmdbId = resolveAnilistIdToTmdbId(anilistResult.id);
+  if (!tmdbId) {
+    return null;
+  }
+  return {
+    id: tmdbId,
+    mediaType: 'anime',
+    title: anilistResult.title,
+    overview: anilistResult.overview,
+    posterPath: anilistResult.posterPath,
+    backdropPath: anilistResult.backdropPath,
+    popularity: anilistResult.averageScore,
+    voteAverage: anilistResult.averageScore / 10,
+    voteCount: anilistResult.averageScore,
+    genreIds: [],
+    originalLanguage: 'ja',
+    source: 'anilist',
+    sourceId: anilistResult.id,
+    firstAirDate: anilistResult.seasonYear
+      ? `${anilistResult.seasonYear}-01-01`
+      : undefined,
+    mediaInfo: media,
+  };
+};
 
 export const mapSearchResults = (
   results: (

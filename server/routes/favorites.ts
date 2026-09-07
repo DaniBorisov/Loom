@@ -24,7 +24,11 @@ favoritesRoutes.post<never, Favorite, Favorite>('/', async (req, res, next) => {
       const entry = crosswalk.getByAniListId(values.mediaId);
       if (entry?.TheMovieDB_id) {
         values.mediaId = entry.TheMovieDB_id;
-      } else {
+      } else if (
+        // Already a TMDB ID (e.g. anime cards now carry resolved IDs,
+        // DAN-103) — known anime, store as-is without the warn below.
+        !crosswalk.getByTmdbId(values.mediaId)
+      ) {
         logger.warn(
           `No crosswalk TMDB mapping for AniList ID ${values.mediaId}, storing raw ID`,
           { label: 'Favorites' }
