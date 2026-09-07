@@ -3,6 +3,7 @@ import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { User } from '@server/entity/User';
+import { UserSettings } from '@server/entity/UserSettings';
 import type { WatchlistItem } from '@server/interfaces/api/discoverInterfaces';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
@@ -108,6 +109,7 @@ export class Watchlist implements WatchlistItem {
       ratingKey?: ZodOptional<ZodString>['_output'];
       title?: ZodOptional<ZodString>['_output'];
       tmdbId: ZodNumber['_output'];
+      notifyOn?: NotifyOn;
     };
     user: User;
   }): Promise<Watchlist> {
@@ -162,6 +164,21 @@ export class Watchlist implements WatchlistItem {
       requestedBy: user,
       media,
     });
+
+    // Explicit per-add value wins; otherwise apply the user's global
+    // default (DAN-48); rows without either keep the BOTH column default.
+    if (!watchlistRequest.notifyOn) {
+      const settingsRepository = getRepository(UserSettings);
+      const settings = await settingsRepository.findOne({
+        where: { user: { id: user.id } },
+      });
+      if (
+        settings?.defaultNotifyOn &&
+        Object.values(NotifyOn).includes(settings.defaultNotifyOn as NotifyOn)
+      ) {
+        watchlist.notifyOn = settings.defaultNotifyOn as NotifyOn;
+      }
+    }
 
     await mediaRepository.save(media);
     await watchlistRepository.save(watchlist);

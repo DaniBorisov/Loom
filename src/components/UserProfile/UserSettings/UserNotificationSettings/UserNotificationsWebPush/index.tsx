@@ -1,6 +1,8 @@
 import Alert from '@app/components/Common/Alert';
 import Button from '@app/components/Common/Button';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
+import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
+import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import NotificationTypeSelector, {
   ALL_NOTIFICATIONS,
 } from '@app/components/NotificationTypeSelector';
@@ -51,6 +53,7 @@ const messages = defineMessages(
     webpushhasbeendisabled: 'Web push has been disabled.',
     enablingwebpusherror: 'Something went wrong while enabling web push.',
     disablingwebpusherror: 'Something went wrong while disabling web push.',
+    defaultnotifyon: 'Default notifications for new watchlist items',
     permissiondeniedtitle: 'Notifications are blocked',
     permissiondeniedguidance:
       'You have blocked notifications for this site, so the browser will not ask again. To enable web push, allow notifications in your browser site settings, then click Enable web push again.',
@@ -288,6 +291,7 @@ const UserWebPushSettings = () => {
       <Formik
         initialValues={{
           types: data?.notificationTypes.webpush ?? ALL_NOTIFICATIONS,
+          defaultNotifyOn: (data?.defaultNotifyOn ?? 'both') as NotifyOnValue,
         }}
         enableReinitialize
         onSubmit={async (values) => {
@@ -305,6 +309,7 @@ const UserWebPushSettings = () => {
                 notificationTypes: {
                   webpush: values.types,
                 },
+                defaultNotifyOn: values.defaultNotifyOn,
               }
             );
             mutate('/api/v1/settings/public');
@@ -333,6 +338,16 @@ const UserWebPushSettings = () => {
         }) => {
           return (
             <Form className="section">
+              <div className="mb-6 max-w-xs">
+                <NotifyOnSelector
+                  value={values.defaultNotifyOn}
+                  onChange={(value) => {
+                    setFieldValue('defaultNotifyOn', value);
+                    setFieldTouched('defaultNotifyOn');
+                  }}
+                  label={intl.formatMessage(messages.defaultnotifyon)}
+                />
+              </div>
               <NotificationTypeSelector
                 user={user}
                 currentTypes={values.types}

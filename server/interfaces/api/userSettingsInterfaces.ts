@@ -39,4 +39,5 @@ export interface UserSettingsNotificationsResponse {
   telegramSendSilently?: boolean;
   webPushEnabled?: boolean;
   notificationTypes: Partial<NotificationAgentTypes>;
+  defaultNotifyOn?: string;
 }

@@ -80,6 +80,13 @@ watchlistRoutes.patch<{ id: string }, Watchlist>(
 
       const values = watchlistUpdate.parse(req.body);
 
+      if (values.status === undefined && values.notifyOn === undefined) {
+        return next({
+          status: 400,
+          message: 'Nothing to update.',
+        });
+      }
+
       const wlRepo = getRepository(Watchlist);
       const watchlist = await wlRepo.findOne({
         where: { id: Number(req.params.id) },
@@ -97,8 +104,16 @@ watchlistRoutes.patch<{ id: string }, Watchlist>(
         });
       }
 
-      const newStatus = transitionStatus(watchlist.status, values.status);
-      watchlist.status = newStatus;
+      if (values.status !== undefined) {
+        const newStatus = transitionStatus(watchlist.status, values.status);
+        watchlist.status = newStatus;
+      }
+
+      // Per-item notification override (DAN-48): takes precedence over the
+      // user's global defaultNotifyOn for trigger fan-out.
+      if (values.notifyOn !== undefined) {
+        watchlist.notifyOn = values.notifyOn;
+      }
 
       const saved = await wlRepo.save(watchlist);
       return res.status(200).json(saved);
