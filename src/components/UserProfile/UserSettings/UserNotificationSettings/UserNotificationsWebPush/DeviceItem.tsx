@@ -43,6 +43,16 @@ const DeviceItem = ({
   const intl = useIntl();
   const parsedUserAgent = UAParser(device.userAgent);
 
+  // Desktop browsers have no device model — fall back to "Browser on OS"
+  // instead of rendering Unknown for every desktop subscription.
+  const deviceName = device.userAgent
+    ? parsedUserAgent.device.model ||
+      [parsedUserAgent.browser.name, parsedUserAgent.os.name]
+        .filter(Boolean)
+        .join(' on ') ||
+      intl.formatMessage(messages.unknown)
+    : intl.formatMessage(messages.unknown);
+
   return (
     <div className="relative flex w-full flex-col justify-between overflow-hidden rounded-xl bg-gray-800 py-4 text-gray-400 shadow-md ring-1 ring-gray-700 xl:h-28 xl:flex-row">
       <div className="relative flex w-full flex-col justify-between overflow-hidden sm:flex-row">
@@ -65,9 +75,7 @@ const DeviceItem = ({
                 : 'N/A'}
             </div>
             <div className="mr-2 min-w-0 truncate text-lg font-bold text-white hover:underline xl:text-xl">
-              {device.userAgent && parsedUserAgent.device.model
-                ? parsedUserAgent.device.model
-                : intl.formatMessage(messages.unknown)}
+              {deviceName}
             </div>
           </div>
         </div>
