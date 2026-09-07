@@ -43,6 +43,36 @@ export const isRequestTimeoutError = (e: unknown): boolean => {
   );
 };
 
+/**
+ * Log-ready error text that surfaces an upstream API's own diagnostic
+ * message when present (DAN-105). Axios errors only carry the generic
+ * status text in `message` (e.g. "Request failed with status code 403"),
+ * while GraphQL APIs like AniList put the actually-useful explanation in
+ * the response body (`errors[].message` — e.g. their "temporarily disabled
+ * due to severe stability issues" outage notice). Without this, an
+ * upstream outage is indistinguishable in the logs from a bug in our own
+ * request-building. Logging only — no behavior change.
+ */
+export const upstreamErrorMessage = (e: unknown): string => {
+  const message =
+    (e as { message?: unknown })?.message ?? 'Unknown error';
+  const data = (e as { response?: { data?: unknown } })?.response?.data;
+  const errors = (data as { errors?: unknown })?.errors;
+  if (Array.isArray(errors)) {
+    const detail = errors
+      .map((entry) => (entry as { message?: unknown })?.message)
+      .filter(
+        (text): text is string =>
+          typeof text === 'string' && text.length > 0
+      )
+      .join('; ');
+    if (detail) {
+      return `${message} — ${detail}`;
+    }
+  }
+  return typeof message === 'string' ? message : 'Unknown error';
+};
+
 class ExternalAPI {
   protected axios: AxiosInstance;
   private baseUrl: string;

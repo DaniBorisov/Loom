@@ -1,4 +1,5 @@
 import AniList from '@server/api/anilist';
+import { upstreamErrorMessage } from '@server/api/externalapi';
 import PlexTvAPI from '@server/api/plextv';
 import type { SortOptions } from '@server/api/themoviedb';
 import TheMovieDb from '@server/api/themoviedb';
@@ -1073,7 +1074,7 @@ discoverRoutes.get('/anime/trending', async (req, res, next) => {
   } catch (e) {
     logger.debug('Something went wrong retrieving trending anime', {
       label: 'API',
-      errorMessage: e.message,
+      errorMessage: upstreamErrorMessage(e),
     });
     return next({
       status: 500,
@@ -1134,7 +1135,7 @@ discoverRoutes.get('/anime/seasonal', async (req, res, next) => {
   } catch (e) {
     logger.debug('Something went wrong retrieving seasonal anime', {
       label: 'API',
-      errorMessage: e.message,
+      errorMessage: upstreamErrorMessage(e),
     });
     return next({
       status: 500,
