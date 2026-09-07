@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import ExternalAPI, {
   DEFAULT_REQUEST_TIMEOUT_MS,
   isRequestTimeoutError,
+  upstreamErrorMessage,
 } from '@server/api/externalapi';
 import JellyfinAPI from '@server/api/jellyfin';
 import RadarrAPI from '@server/api/servarr/radarr';
@@ -87,5 +88,69 @@ describe('API client request timeouts (DAN-92)', () => {
       elapsed < 8000,
       `expected fail-fast, took ${elapsed}ms`
     );
+  });
+});
+
+describe('upstreamErrorMessage (DAN-105)', () => {
+  it('surfaces GraphQL errors[].message alongside the axios message', () => {
+    const outage = new Error('Request failed with status code 403') as Error & {
+      response: {
+        data: {
+          errors: [
+            {
+              message:
+                'The AniList API has been temporarily disabled due to severe stability issues.',
+              status: 403,
+            },
+          ];
+        };
+      };
+    };
+    outage.response = {
+      data: {
+        errors: [
+          {
+            message:
+              'The AniList API has been temporarily disabled due to severe stability issues.',
+            status: 403,
+          },
+        ],
+      },
+    };
+
+    assert.equal(
+      upstreamErrorMessage(outage),
+      'Request failed with status code 403 — The AniList API has been temporarily disabled due to severe stability issues.'
+    );
+  });
+
+  it('joins multiple GraphQL messages and ignores empty ones', () => {
+    const err = new Error('Request failed with status code 400') as Error & {
+      response?: { data?: unknown };
+    };
+    err.response = {
+      data: { errors: [{ message: 'First' }, { message: '' }, {}, { message: 'Second' }] },
+    };
+
+    assert.equal(
+      upstreamErrorMessage(err),
+      'Request failed with status code 400 — First; Second'
+    );
+  });
+
+  it('falls back to the plain message without a usable body', () => {
+    assert.equal(
+      upstreamErrorMessage(new Error('timeout of 10000ms exceeded')),
+      'timeout of 10000ms exceeded'
+    );
+    assert.equal(
+      upstreamErrorMessage(
+        Object.assign(new Error('Request failed with status code 500'), {
+          response: { data: { data: null } },
+        })
+      ),
+      'Request failed with status code 500'
+    );
+    assert.equal(upstreamErrorMessage(undefined), 'Unknown error');
   });
 });
