@@ -11,6 +11,15 @@ const { registerRoute } = workbox.routing;
 const { CacheFirst, NetworkFirst, NetworkOnly, StaleWhileRevalidate } =
   workbox.strategies;
 
+// Versioned shell cache. Bump this whenever an UNHASHED public/ asset
+// changes content at the same URL (logos, splash screens, icons): the
+// activate handler below purges every other cache, so stale entries can
+// never survive a service-worker update. (Hashed Next.js build assets are
+// immutable and safe under any name; the version exists for the unhashed
+// files sharing this cache.)
+const APP_SHELL_CACHE = 'app-shell-v2';
+const PAGES_CACHE = 'pages';
+
 // App shell: hashed Next.js build assets (JS/CSS) are immutable, so serve them
 // stale-while-revalidate after the first visit (fast reads, background refresh).
 // Fonts are cached the same way.
@@ -21,7 +30,7 @@ registerRoute(
     request.destination === 'font' ||
     request.destination === 'worker',
   new StaleWhileRevalidate({
-    cacheName: 'app-shell',
+    cacheName: APP_SHELL_CACHE,
   })
 );
 
@@ -41,7 +50,7 @@ registerRoute(
   ({ request, url }) =>
     request.destination !== 'document' && url.origin === self.location.origin,
   new CacheFirst({
-    cacheName: 'app-shell',
+    cacheName: APP_SHELL_CACHE,
   })
 );
 
@@ -50,7 +59,7 @@ registerRoute(
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
-    cacheName: 'pages',
+    cacheName: PAGES_CACHE,
     networkTimeoutSeconds: 3,
   })
 );
@@ -87,6 +96,13 @@ self.addEventListener('activate', (event) => {
         await self.registration.navigationPreload.enable();
       }
       await self.clients.claim();
+      // Drop caches from previous versions (see APP_SHELL_CACHE above) so
+      // stale unhashed assets are purged on every worker update.
+      const keep = new Set([APP_SHELL_CACHE, PAGES_CACHE]);
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.filter((key) => !keep.has(key)).map((key) => caches.delete(key))
+      );
     })()
   );
 });
