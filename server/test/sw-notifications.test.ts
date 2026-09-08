@@ -23,6 +23,8 @@ interface Harness {
   focusedClients: string[];
   fetched: { url: string; init?: { method?: string } }[];
   openClients: { url: string }[];
+  existingCaches: string[];
+  deletedCaches: string[];
 }
 
 async function loadWorker(openClients: { url: string }[] = []): Promise<Harness> {
@@ -33,6 +35,8 @@ async function loadWorker(openClients: { url: string }[] = []): Promise<Harness>
     focusedClients: [],
     fetched: [],
     openClients,
+    existingCaches: ['app-shell', 'pages', 'app-shell-v2'],
+    deletedCaches: [],
   };
 
   const sandbox = {
@@ -56,6 +60,7 @@ async function loadWorker(openClients: { url: string }[] = []): Promise<Harness>
         harness.listeners[type] = fn;
       },
       skipWaiting: () => {},
+      clients: { claim: async () => {} },
       registration: {
         showNotification: (title: string, options: never) => {
           // Clone across the vm realm boundary so deepStrictEqual sees
@@ -88,6 +93,13 @@ async function loadWorker(openClients: { url: string }[] = []): Promise<Harness>
     fetch: async (url: string, init?: { method?: string }) => {
       harness.fetched.push({ url, init });
       return { ok: true };
+    },
+    caches: {
+      keys: async () => [...harness.existingCaches],
+      delete: async (key: string) => {
+        harness.deletedCaches.push(key);
+        return true;
+      },
     },
     URL,
     Date,
@@ -201,5 +213,12 @@ describe('public/sw.js push handling (DAN-49)', () => {
           call.init?.method === 'POST'
       )
     );
+  });
+
+  it('purges previous-version caches on activate, keeping current ones', async () => {
+    const harness = await loadWorker();
+    await dispatch(harness, 'activate', {});
+
+    assert.deepStrictEqual(harness.deletedCaches, ['app-shell']);
   });
 });
