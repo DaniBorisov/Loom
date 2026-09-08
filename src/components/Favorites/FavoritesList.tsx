@@ -1,4 +1,5 @@
 import Header from '@app/components/Common/Header';
+import EmptyState from '@app/components/Common/EmptyState';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
@@ -113,17 +114,17 @@ const FavoritesList = () => {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
         </div>
       ) : items.length === 0 ? (
-        <div className="mt-32 flex flex-col items-center justify-center text-center">
-          <p className="text-lg text-gray-400">
-            {intl.formatMessage(messages.empty)}
-          </p>
-          <Link
-            href="/"
-            className="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-          >
-            Browse Media
-          </Link>
-        </div>
+        <EmptyState
+          message={intl.formatMessage(messages.empty)}
+          action={
+            <Link
+              href="/"
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            >
+              Browse Media
+            </Link>
+          }
+        />
       ) : (
         <ul className="cards-vertical">
           {items.map((item) => (

@@ -1,4 +1,5 @@
 import Button from '@app/components/Common/Button';
+import EmptyState from '@app/components/Common/EmptyState';
 import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
@@ -166,11 +167,7 @@ const DiscoverWatchlist = () => {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
         </div>
       ) : items.length === 0 ? (
-        <div className="mt-32 flex flex-col items-center justify-center text-center">
-          <p className="text-lg text-gray-400">
-            {intl.formatMessage(messages.emptyTab)}
-          </p>
-        </div>
+        <EmptyState message={intl.formatMessage(messages.emptyTab)} />
       ) : (
         <>
           <ul className="cards-vertical">
