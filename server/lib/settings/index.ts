@@ -411,7 +411,7 @@ class Settings {
       vapidPublic: '',
       main: {
         apiKey: '',
-        applicationTitle: 'Seerr',
+        applicationTitle: 'Loom',
         applicationUrl: '',
         cacheImages: false,
         defaultPermissions: Permission.REQUEST,
