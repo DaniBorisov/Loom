@@ -35,7 +35,7 @@ interface InstallAppPromptProps {
 }
 
 const InstallAppPrompt = ({
-  applicationTitle = 'Seerr',
+  applicationTitle = 'Loom',
 }: InstallAppPromptProps) => {
   const intl = useIntl();
   const [deferredPrompt, setDeferredPrompt] =
