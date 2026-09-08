@@ -1,0 +1,54 @@
+---
+title: Webhooks & Push Setup
+description: Configure Jellyfin, Sonarr/Radarr webhooks and VAPID keys for watch tracking and push notifications.
+sidebar_position: 5
+---
+
+# Webhooks & Push Setup
+
+Three integrations need configuration beyond plain environment variables: the Jellyfin webhook (watch tracking), the Sonarr/Radarr webhooks ("available in library" push triggers), and the VAPID keys (push identity). Each section below is independently verifiable — follow them in order and check the confirmation step before moving on.
+
+All webhook endpoints live under `/api/v1/webhook` and always answer `200` for accepted deliveries (so senders never retry) or `401` for a missing/invalid secret.
+
+## 1. Jellyfin webhook (watch tracking)
+
+The app learns what you watch from Jellyfin's Webhook plugin (playback-stop events), which drives the "watching/watched" watchlist states.
+
+1. In Jellyfin, install the **Webhook** plugin from the catalog and restart Jellyfin.
+2. Pick a secret value and set it as the `JELLYFIN_WEBHOOK_SECRET` environment variable on the app (then restart the app).
+3. In the plugin settings, add a webhook:
+   - **Webhook URL:** `http(s)://<seerr-host>:5055/api/v1/webhook/jellyfin`
+   - **Notification Type:** Playback Stop (other types are accepted and ignored)
+   - Add a custom header `X-Webhook-Secret` with the same secret value.
+4. Play something briefly in Jellyfin, then confirm: the app logs `Received Jellyfin webhook notification`, and the item flips to "watching" on your watchlist.
+
+## 2. Sonarr / Radarr webhooks ("available in library" pushes)
+
+When Sonarr/Radarr finish importing a download, these webhooks tell the app, which pushes "now available in your library" to every user with that item on their watchlist (respecting each item's notification preference).
+
+1. Pick secret values and set `SONARR_WEBHOOK_SECRET` and `RADARR_WEBHOOK_SECRET` on the app (then restart the app).
+2. Sonarr → **Settings → Connect → + → Webhook**:
+   - **Name:** anything (e.g. `Seerr`)
+   - **Triggers:** enable **On Download** (other events are accepted and ignored)
+   - **URL:** `http(s)://<seerr-host>:5055/api/v1/webhook/sonarr?secret=<your-sonarr-secret>`
+   - **Method:** POST
+3. Radarr → **Settings → Connect → + → Webhook**, same shape with `/api/v1/webhook/radarr?secret=<your-radarr-secret>`.
+
+:::info[Why the secret is in the URL]
+Sonarr/Radarr webhook notifications cannot send custom HTTP headers, so the shared secret travels as the `?secret=` query parameter instead. (The `X-Webhook-Secret` header is also accepted where supported.)
+:::
+
+4. Confirm: press **Test** in Sonarr/Radarr (accepted, ignored, `200`), then trigger a real import — matching watchlist owners get a push within seconds. No matching watchlist row means no push and no error; that is by design.
+
+## 3. VAPID keys (push identity)
+
+Web push needs a VAPID key pair identifying your server to push services. You normally do nothing:
+
+- On first boot with no keys configured, the app **generates a pair automatically** and persists it in `settings.json` (`vapidPublic` / `vapidPrivate`).
+- To supply your own instead, set **both** `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` — a half-set pair is ignored entirely, since mixing keys from different pairs silently breaks every subscription.
+
+:::warning[Rotating keys resets everyone]
+Rotating VAPID keys invalidates **every** existing push subscription: sends signed with the old key are rejected, dead rows are cleaned up automatically, and each user must re-subscribe on every device (profile → notification settings → web push → Enable). Rotate only if the private key leaked.
+:::
+
+4. Confirm: enable the **Web Push** agent in **Settings → Notifications**, then as a user go to profile → notification settings → web push → **Enable web push** and grant the browser prompt. The device appears under **Manage Devices**. (Push requires a secure context: `localhost` or HTTPS — plain `http://<lan-ip>` cannot subscribe.)
