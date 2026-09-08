@@ -1,0 +1,15 @@
+<svg width="320" height="90" viewBox="0 0 320 90" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mark: two interwoven threads, evoking a loom, kept minimal -->
+  <g transform="translate(10, 15)">
+    <path d="M4 4 C 4 30, 56 30, 56 56" stroke="#7A1F1F" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M56 4 C 56 30, 4 30, 4 56" stroke="#7A1F1F" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.35"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="90" y="58"
+        font-family="-apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="42"
+        font-weight="600"
+        letter-spacing="0.5"
+        fill="#7A1F1F">loom</text>
+</svg>
