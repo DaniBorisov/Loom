@@ -14,7 +14,7 @@ const EmptyState = ({ message, action }: EmptyStateProps) => {
   return (
     <div className="mt-32 flex flex-col items-center justify-center text-center">
       <EmptyWatchlistArt
-        className="mb-6 h-40 w-40 text-gray-600"
+        className="mb-4 max-w-full text-gray-600"
         data-testid="empty-state-art"
         aria-hidden="true"
       />
