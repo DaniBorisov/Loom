@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Seerr CI
+name: Loom CI
 
 on:
   pull_request:

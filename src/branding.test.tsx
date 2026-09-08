@@ -1,5 +1,6 @@
 import PWAHeader from '@app/components/PWAHeader';
 import { cleanup, render } from '@testing-library/react';
+import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { IntlProvider } from 'react-intl';
@@ -73,8 +74,7 @@ describe('Loom branding (DAN-63)', () => {
     }
   });
 
-  it('references only manifest icons that exist on disk', () => {
-    const manifest = JSON.parse(
+  it('references only manifest icons that exist on disk', () => {    const manifest = JSON.parse(
       readFileSync(join(ROOT, 'public/site.webmanifest'), 'utf8')
     ) as {
       icons: { src: string }[];
@@ -94,5 +94,23 @@ describe('Loom branding (DAN-63)', () => {
         true
       );
     }
+  });
+});
+
+describe('Loom rename (DAN-54)', () => {
+  it('names the package and repository Loom', () => {
+    const pkg = JSON.parse(
+      readFileSync(join(ROOT, 'package.json'), 'utf8')
+    ) as { name: string; repository: { url: string } };
+
+    assert.strictEqual(pkg.name, 'loom');
+    assert.ok(pkg.repository.url.includes('DaniBorisov/Loom'));
+  });
+
+  it('titles the README Loom without old repo references', () => {
+    const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
+
+    assert.ok(readme.includes('# Loom'));
+    assert.ok(!readme.includes('seerr-team/seerr'));
   });
 });
