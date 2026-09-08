@@ -298,7 +298,13 @@ const checkServarrSecret = (
   if (!configuredSecret) {
     return false;
   }
-  return req.header('X-Webhook-Secret') === configuredSecret;
+  // Header first, `?secret=` query fallback: Sonarr/Radarr webhook
+  // notifications cannot send custom headers, but their URL field accepts
+  // a full URL including query parameters (DAN-53).
+  return (
+    req.header('X-Webhook-Secret') === configuredSecret ||
+    req.query.secret === configuredSecret
+  );
 };
 
 /**

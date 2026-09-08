@@ -2234,7 +2234,7 @@ paths:
   /webhook/sonarr:
     post:
       summary: Receive Sonarr download webhooks
-      description: 'Receives Download notifications from Sonarr. Authenticated via the X-Webhook-Secret header, which must match the SONARR_WEBHOOK_SECRET environment variable. Resolves the series to a TMDB ID and fans out "available in library" pushes to users with a matching watchlist row. Always answers 200 quickly; the trigger runs in the background.'
+      description: 'Receives Download notifications from Sonarr. Authenticated via the X-Webhook-Secret header or the ?secret= query parameter (Sonarr cannot send custom headers), which must match the SONARR_WEBHOOK_SECRET environment variable. Resolves the series to a TMDB ID and fans out "available in library" pushes to users with a matching watchlist row. Always answers 200 quickly; the trigger runs in the background.'
       security: []
       tags:
         - public
@@ -2246,7 +2246,7 @@ paths:
   /webhook/radarr:
     post:
       summary: Receive Radarr download webhooks
-      description: 'Receives Download notifications from Radarr. Authenticated via the X-Webhook-Secret header, which must match the RADARR_WEBHOOK_SECRET environment variable. Fans out "available in library" pushes to users with a matching watchlist row. Always answers 200 quickly; the trigger runs in the background.'
+      description: 'Receives Download notifications from Radarr. Authenticated via the X-Webhook-Secret header or the ?secret= query parameter (Radarr cannot send custom headers), which must match the RADARR_WEBHOOK_SECRET environment variable. Fans out "available in library" pushes to users with a matching watchlist row. Always answers 200 quickly; the trigger runs in the background.'
       security: []
       tags:
         - public

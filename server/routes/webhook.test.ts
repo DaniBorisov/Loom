@@ -736,6 +736,13 @@ describe('POST /webhook/sonarr and /webhook/radarr (DAN-46)', () => {
     assert.strictEqual(wrongSecret.status, 401);
   });
 
+  it('accepts the secret as a query parameter (Sonarr/Radarr cannot send custom headers)', async () => {
+    const res = await request(app)
+      .post(`/webhook/sonarr?secret=${SONARR_SECRET}`)
+      .send({ eventType: 'Test', series: { tvdbId: 1 } });
+    assert.strictEqual(res.status, 200);
+  });
+
   it('ignores non-Download events with 200', async () => {
     for (const [path, secret, body] of [
       [
