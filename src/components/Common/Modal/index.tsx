@@ -161,7 +161,7 @@ const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
                 <div className="flex flex-col space-y-1">
                   {title && (
                     <span
-                      className="text-overseerr truncate pb-0.5 text-2xl font-bold leading-6"
+                      className="text-brand truncate pb-0.5 text-2xl font-bold leading-6"
                       id="modal-headline"
                       data-testid="modal-title"
                     >

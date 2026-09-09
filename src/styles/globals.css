@@ -553,7 +553,7 @@
     scrollbar-width: none; /* Firefox */
   }
 
-  .text-overseerr {
+  .text-brand {
     @apply bg-gradient-to-br from-indigo-400 to-purple-400 bg-clip-text text-transparent;
   }
 
