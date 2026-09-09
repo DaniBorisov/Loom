@@ -85,9 +85,19 @@ describe('Loom branding (DAN-63)', () => {
     const manifest = JSON.parse(
       readFileSync(join(ROOT, 'public/site.webmanifest'), 'utf8')
     ) as {
+      name: string;
+      short_name: string;
+      theme_color: string;
+      background_color: string;
       icons: { src: string }[];
       shortcuts: { icons: { src: string }[] }[];
     };
+
+    // DAN-64: installed app identifies as Loom with brand colors.
+    assert.strictEqual(manifest.name, 'Loom');
+    assert.strictEqual(manifest.short_name, 'Loom');
+    assert.strictEqual(manifest.theme_color, '#7A1F1F');
+    assert.strictEqual(manifest.background_color, '#1A1A1A');
 
     const srcs = [
       ...manifest.icons.map((icon) => icon.src),
