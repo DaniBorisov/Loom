@@ -172,7 +172,7 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.subject ?? 'Seerr', options)
+    self.registration.showNotification(payload.subject ?? 'Loom', options)
   );
 });
 

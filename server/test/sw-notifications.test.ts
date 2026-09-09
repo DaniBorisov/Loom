@@ -161,7 +161,7 @@ describe('public/sw.js push handling (DAN-49)', () => {
     await dispatch(harness, 'push', { data: null });
 
     assert.strictEqual(harness.notifications.length, 1);
-    assert.strictEqual(harness.notifications[0].title, 'Seerr');
+    assert.strictEqual(harness.notifications[0].title, 'Loom');
   });
 
   it('focuses the open app window instead of opening a new one', async () => {
