@@ -424,7 +424,7 @@ const UserMALSettings = () => {
             </div>
           ) : (
             <Button
-              buttonType="primary"
+              buttonType="success"
               onClick={handleImport}
               disabled={importing}
             >

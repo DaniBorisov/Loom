@@ -453,7 +453,7 @@ const SettingsMetadata = () => {
                     <span className="ml-3 inline-flex rounded-md shadow-sm">
                       <Button
                         data-testid="metadata-save-button"
-                        buttonType="primary"
+                        buttonType="success"
                         type="submit"
                         disabled={isSubmitting || !isValid || isTesting}
                       >
