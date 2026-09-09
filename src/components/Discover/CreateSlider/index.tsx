@@ -512,18 +512,18 @@ const CreateSlider = ({ onCreate, slider }: CreateSliderProps) => {
               {resultCount === 0 ? (
                 <Tooltip content={intl.formatMessage(messages.needresults)}>
                   <div>
-                    <Button buttonType="primary" buttonSize="sm" disabled>
+                    <Button buttonType="success" buttonSize="sm" disabled>
                       {intl.formatMessage(messages.addSlider)}
                     </Button>
                   </div>
                 </Tooltip>
               ) : (
                 <div>
-                  <Button
-                    buttonType="primary"
-                    buttonSize="sm"
-                    disabled={isSubmitting || !isValid}
-                  >
+                    <Button
+                      buttonType="success"
+                      buttonSize="sm"
+                      disabled={isSubmitting || !isValid}
+                    >
                     {intl.formatMessage(
                       slider ? messages.editSlider : messages.addSlider
                     )}
