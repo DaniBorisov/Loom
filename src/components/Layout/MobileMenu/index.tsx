@@ -1,5 +1,10 @@
 import Badge from '@app/components/Common/Badge';
-import { menuMessages } from '@app/components/Layout/Sidebar';
+import {
+  dashboardActiveRegExp,
+  dashboardHref,
+  menuMessages,
+  watchlistActiveRegExp,
+} from '@app/components/Layout/Sidebar';
 import useClickOutside from '@app/hooks/useClickOutside';
 import { Permission, useUser } from '@app/hooks/useUser';
 import { Transition } from '@headlessui/react';
@@ -78,11 +83,11 @@ const MobileMenu = ({
 
   const menuLinks: MenuLink[] = [
     {
-      href: '/',
+      href: dashboardHref,
       content: intl.formatMessage(menuMessages.dashboard),
       svgIcon: <SparklesIcon className="h-6 w-6" />,
       svgIconSelected: <FilledSparklesIcon className="h-6 w-6" />,
-      activeRegExp: /^\/(discover\/?)?$/,
+      activeRegExp: dashboardActiveRegExp,
     },
     {
       href: '/discover/movies',
@@ -117,7 +122,7 @@ const MobileMenu = ({
       content: intl.formatMessage(menuMessages.watchlist),
       svgIcon: <ListBulletIcon className="h-6 w-6" />,
       svgIconSelected: <FilledListBulletIcon className="h-6 w-6" />,
-      activeRegExp: /^\/discover\/watchlist/,
+      activeRegExp: watchlistActiveRegExp,
     },
     {
       href: '/requests',

@@ -1,8 +1,8 @@
-import Discover from '@app/components/Discover';
+import DiscoverWatchlist from '@app/components/Discover/DiscoverWatchlist';
 import type { NextPage } from 'next';
 
 const Index: NextPage = () => {
-  return <Discover />;
+  return <DiscoverWatchlist />;
 };
 
 export default Index;
