@@ -600,7 +600,7 @@ const UserGeneralSettings = () => {
                 <div className="flex justify-end">
                   <span className="ml-3 inline-flex rounded-md shadow-sm">
                     <Button
-                      buttonType="primary"
+                      buttonType="success"
                       type="submit"
                       disabled={isSubmitting || !isValid}
                     >
