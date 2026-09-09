@@ -26,7 +26,9 @@ describe('public/sw.js PWA offline caching contract (Epic 6 / DAN-40)', () => {
   it('defines versioned app-shell and pages cache names', () => {
     // The shell cache is versioned (app-shell-vN) with activate-time purge
     // of older generations so stale unhashed assets cannot survive updates.
-    assert.match(sw, /APP_SHELL_CACHE = 'app-shell-v\d+'/);
+    // Bump the version (and this test) whenever unhashed public/ assets
+    // change content at the same URL.
+    assert.match(sw, /APP_SHELL_CACHE = 'app-shell-v3'/);
     assert.match(sw, /PAGES_CACHE = 'pages'/);
   });
 
