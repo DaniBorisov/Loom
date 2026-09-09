@@ -4,12 +4,12 @@ import type * as OpenApiPlugin from 'docusaurus-plugin-openapi-docs';
 import { themes as prismThemes } from 'prism-react-renderer';
 
 const config: Config = {
-  title: 'Seerr',
+  title: 'Loom',
   tagline: 'One Stop Solution for all your media request needs',
   favicon: 'img/favicon.ico',
 
-  url: 'https://docs.seerr.dev',
-  baseUrl: '/',
+  url: 'https://daniborisov.github.io',
+  baseUrl: '/Loom/',
   trailingSlash: true,
 
   future: {
@@ -18,8 +18,8 @@ const config: Config = {
     },
   },
 
-  organizationName: 'seerr-team',
-  projectName: 'seerr',
+  organizationName: 'DaniBorisov',
+  projectName: 'Loom',
   deploymentBranch: 'gh-pages',
 
   onBrokenLinks: 'throw',
@@ -43,7 +43,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
           path: '../docs',
-          editUrl: 'https://github.com/seerr-team/seerr/edit/develop/docs/',
+          editUrl: 'https://github.com/DaniBorisov/Loom/edit/develop/docs/',
           docItemComponent: '@theme/ApiItem',
           async sidebarItemsGenerator({
             defaultSidebarItemsGenerator,
@@ -81,7 +81,7 @@ const config: Config = {
               groupPathsBy: 'tag',
             },
             downloadUrl:
-              'https://raw.githubusercontent.com/seerr-team/seerr/refs/heads/develop/seerr-api.yml',
+              'https://raw.githubusercontent.com/DaniBorisov/Loom/refs/heads/develop/seerr-api.yml',
             hideSendButton: true,
           } satisfies OpenApiPlugin.Options,
         },
@@ -112,12 +112,12 @@ const config: Config = {
     },
     navbar: {
       logo: {
-        alt: 'Seerr',
+        alt: 'Loom',
         src: 'img/logo_full.svg',
       },
       items: [
         {
-          to: '/api/seerr-api',
+          to: '/api/loom-api',
           label: 'REST API',
           position: 'right',
         },
@@ -127,12 +127,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://discord.gg/seerr',
-          label: 'Discord',
-          position: 'right',
-        },
-        {
-          href: 'https://github.com/seerr-team/seerr',
+          href: 'https://github.com/DaniBorisov/Loom',
           label: 'GitHub',
           position: 'right',
         },
@@ -150,7 +145,7 @@ const config: Config = {
             },
             {
               label: 'REST API',
-              to: '/api/seerr-api',
+              to: '/api/loom-api',
             },
           ],
         },
@@ -163,7 +158,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/seerr-team/seerr',
+              href: 'https://github.com/DaniBorisov/Loom',
             },
           ],
         },
@@ -171,17 +166,13 @@ const config: Config = {
           title: 'Community',
           items: [
             {
-              label: 'Discord',
-              href: 'https://discord.gg/seerr',
-            },
-            {
               label: 'Github Discussions',
-              href: 'https://github.com/seerr-team/seerr/discussions',
+              href: 'https://github.com/DaniBorisov/Loom/discussions',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Seerr. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Loom. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.shadesOfPurple,
