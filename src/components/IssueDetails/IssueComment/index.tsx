@@ -211,7 +211,7 @@ const IssueComment = ({
                           {intl.formatMessage(globalMessages.cancel)}
                         </Button>
                         <Button
-                          buttonType="primary"
+                          buttonType="success"
                           disabled={!isValid || isSubmitting}
                         >
                           {intl.formatMessage(globalMessages.save)}

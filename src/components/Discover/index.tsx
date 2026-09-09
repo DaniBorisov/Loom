@@ -193,7 +193,7 @@ const Discover = () => {
               </ConfirmButton>
             </Tooltip>
             <Button
-              buttonType="primary"
+              buttonType="success"
               type="submit"
               disabled={!hasChanged()}
               onClick={() => updateSliders()}

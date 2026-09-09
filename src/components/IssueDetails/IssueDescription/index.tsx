@@ -136,7 +136,7 @@ const IssueDescription = ({
                   >
                     <span>{intl.formatMessage(globalMessages.cancel)}</span>
                   </Button>
-                  <Button buttonType="primary">
+                  <Button buttonType="success">
                     <span>{intl.formatMessage(globalMessages.save)}</span>
                   </Button>
                 </div>
