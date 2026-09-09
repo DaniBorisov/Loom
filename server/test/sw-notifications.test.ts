@@ -37,7 +37,7 @@ async function loadWorker(
     focusedClients: [],
     fetched: [],
     openClients,
-    existingCaches: ['app-shell', 'pages', 'app-shell-v2'],
+    existingCaches: ['app-shell', 'app-shell-v2', 'pages', 'app-shell-v3'],
     deletedCaches: [],
   };
 
@@ -221,6 +221,6 @@ describe('public/sw.js push handling (DAN-49)', () => {
     const harness = await loadWorker();
     await dispatch(harness, 'activate', {});
 
-    assert.deepStrictEqual(harness.deletedCaches, ['app-shell']);
+    assert.deepStrictEqual(harness.deletedCaches, ['app-shell', 'app-shell-v2']);
   });
 });

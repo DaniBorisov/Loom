@@ -17,7 +17,7 @@ const { CacheFirst, NetworkFirst, NetworkOnly, StaleWhileRevalidate } =
 // never survive a service-worker update. (Hashed Next.js build assets are
 // immutable and safe under any name; the version exists for the unhashed
 // files sharing this cache.)
-const APP_SHELL_CACHE = 'app-shell-v2';
+const APP_SHELL_CACHE = 'app-shell-v3';
 const PAGES_CACHE = 'pages';
 
 // App shell: hashed Next.js build assets (JS/CSS) are immutable, so serve them
