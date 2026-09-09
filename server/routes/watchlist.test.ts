@@ -439,6 +439,9 @@ describe('Watchlist notifyOn preferences (DAN-48)', () => {
   before(() => {
     // Clear the DAN-93 describe's unrestored mocks, then stub TMDB +
     // Jellyfin behind the route once (mock.method cannot re-mock).
+    // MediaRequest.request is stubbed too: POST fires processAutoRequest
+    // in the background, and its real DB writes would otherwise race later
+    // tests' schema resets (flaky "no such table" failures in full runs).
     mock.restoreAll();
     mock.method(ExternalAPI.prototype as never, 'get' as never, async () => ({
       id: 72001,
@@ -449,6 +452,7 @@ describe('Watchlist notifyOn preferences (DAN-48)', () => {
       'lookupByProviderId' as never,
       async () => null
     );
+    mock.method(MediaRequest, 'request', async () => ({ id: 1, status: 2 }));
   });
 
   async function setDefaultNotifyOn(email: string, value: string) {
