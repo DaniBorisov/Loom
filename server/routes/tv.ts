@@ -1,9 +1,9 @@
+import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import { getMetadataProvider } from '@server/api/metadata';
 import RottenTomatoes from '@server/api/rating/rottentomatoes';
 import TheMovieDb from '@server/api/themoviedb';
 import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import type { TmdbKeyword } from '@server/api/themoviedb/interfaces';
-import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
@@ -23,7 +23,10 @@ function is404(err: unknown): boolean {
 async function resolveTmdbId(
   tmdb: TheMovieDb,
   requestedId: number
-): Promise<{ tmdbTv: Awaited<ReturnType<TheMovieDb['getTvShow']>>; tmdbId: number }> {
+): Promise<{
+  tmdbTv: Awaited<ReturnType<TheMovieDb['getTvShow']>>;
+  tmdbId: number;
+}> {
   try {
     const tmdbTv = await tmdb.getTvShow({ tvId: requestedId });
     return { tmdbTv, tmdbId: requestedId };

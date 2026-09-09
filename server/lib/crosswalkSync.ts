@@ -1,5 +1,5 @@
-import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import type { AnimeCrosswalkEntry } from '@server/api/anilist/crosswalk';
+import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
 import logger from '@server/logger';
 import fs from 'fs';
 import { rename, writeFile } from 'fs/promises';

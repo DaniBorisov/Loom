@@ -7,6 +7,7 @@
  */
 
 export const isIOS = (userAgent?: string): boolean => {
-  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  const ua =
+    userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
   return /iPad|iPhone|iPod/.test(ua);
 };

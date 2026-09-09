@@ -1,15 +1,15 @@
+import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import {
   favoriteStatusKey,
   useFavoriteStatus,
   useFavoriteStatusBatch,
 } from '@app/hooks/useFavoriteStatus';
-import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { IntlProvider } from 'react-intl';
 import { SWRConfig } from 'swr';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('axios', () => ({
   default: { post: vi.fn(), get: vi.fn() },
@@ -33,9 +33,7 @@ const SingleProbe = ({
   source?: 'tmdb' | 'anilist';
 }) => {
   const { data } = useFavoriteStatus(mediaId, source);
-  return (
-    <div data-testid="single">{JSON.stringify(data ?? null)}</div>
-  );
+  return <div data-testid="single">{JSON.stringify(data ?? null)}</div>;
 };
 
 const renderProbe = (ui: React.ReactElement) =>

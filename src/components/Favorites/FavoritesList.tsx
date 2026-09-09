@@ -1,5 +1,5 @@
-import Header from '@app/components/Common/Header';
 import EmptyState from '@app/components/Common/EmptyState';
+import Header from '@app/components/Common/Header';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
@@ -49,10 +49,7 @@ const FavoritesList = () => {
   const { data: favoritesData, error } =
     useSWR<FavoritesPageData>('/api/v1/favorites');
 
-  const items = useMemo(
-    () => favoritesData?.results ?? [],
-    [favoritesData]
-  );
+  const items = useMemo(() => favoritesData?.results ?? [], [favoritesData]);
 
   // One batched availability request for all rendered cards (DAN-98). Must
   // stay above the error early-return to keep hook order stable.

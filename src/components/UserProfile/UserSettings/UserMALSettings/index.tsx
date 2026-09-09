@@ -11,9 +11,9 @@ import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
   LinkIcon,
-    TrashIcon,
-    XCircleIcon,
-  } from '@heroicons/react/24/solid';
+  TrashIcon,
+  XCircleIcon,
+} from '@heroicons/react/24/solid';
 import axios from 'axios';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -57,8 +57,7 @@ const messages = defineMessages(
     removeMalImport: 'Remove Imported List',
     removeMalImportConfirm:
       'This will remove all MAL-imported watchlist items from Loom. Your MyAnimeList account and connection will not be affected. You can re-import later.',
-    removeMalImportSuccess:
-      'Removed {count} MAL-imported watchlist item(s).',
+    removeMalImportSuccess: 'Removed {count} MAL-imported watchlist item(s).',
     removeMalImportEmpty: 'No MAL-imported items to remove.',
   }
 );
@@ -239,9 +238,7 @@ const UserMALSettings = () => {
           })
         );
       } else {
-        setSuccessMessage(
-          intl.formatMessage(messages.removeMalImportEmpty)
-        );
+        setSuccessMessage(intl.formatMessage(messages.removeMalImportEmpty));
       }
     } catch {
       setSuccessMessage(null);

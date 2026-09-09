@@ -1,5 +1,5 @@
-import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
+import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';

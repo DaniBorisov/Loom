@@ -81,7 +81,8 @@ describe('Loom branding (DAN-63)', () => {
     }
   });
 
-  it('references only manifest icons that exist on disk', () => {    const manifest = JSON.parse(
+  it('references only manifest icons that exist on disk', () => {
+    const manifest = JSON.parse(
       readFileSync(join(ROOT, 'public/site.webmanifest'), 'utf8')
     ) as {
       icons: { src: string }[];

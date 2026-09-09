@@ -1,11 +1,11 @@
 import PersonCard from '@app/components/PersonCard';
 import TitleCard from '@app/components/TitleCard';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
+import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import {
   favoriteStatusKey,
   useFavoriteStatusBatch,
 } from '@app/hooks/useFavoriteStatus';
-import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,

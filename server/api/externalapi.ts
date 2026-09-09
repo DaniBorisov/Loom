@@ -54,16 +54,14 @@ export const isRequestTimeoutError = (e: unknown): boolean => {
  * request-building. Logging only — no behavior change.
  */
 export const upstreamErrorMessage = (e: unknown): string => {
-  const message =
-    (e as { message?: unknown })?.message ?? 'Unknown error';
+  const message = (e as { message?: unknown })?.message ?? 'Unknown error';
   const data = (e as { response?: { data?: unknown } })?.response?.data;
   const errors = (data as { errors?: unknown })?.errors;
   if (Array.isArray(errors)) {
     const detail = errors
       .map((entry) => (entry as { message?: unknown })?.message)
       .filter(
-        (text): text is string =>
-          typeof text === 'string' && text.length > 0
+        (text): text is string => typeof text === 'string' && text.length > 0
       )
       .join('; ');
     if (detail) {

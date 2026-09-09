@@ -9,13 +9,13 @@ import Media from '@server/entity/Media';
 import { User } from '@server/entity/User';
 import { WatchedStatus } from '@server/entity/WatchedStatus';
 import { Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
-import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
-import { getSettings } from '@server/lib/settings';
 import cacheManager from '@server/lib/cache';
 import {
   JELLYFIN_UNREACHABLE_KEY,
   markJellyfinUnreachable,
 } from '@server/lib/jellyfinBreaker';
+import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
+import { getSettings } from '@server/lib/settings';
 import { setupTestDb } from '@server/test/db';
 
 setupTestDb();

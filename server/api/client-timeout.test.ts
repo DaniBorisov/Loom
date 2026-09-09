@@ -12,11 +12,7 @@ import SonarrAPI from '@server/api/servarr/sonarr';
 
 class TimeoutProbeAPI extends ExternalAPI {
   constructor(timeout?: number) {
-    super(
-      'http://127.0.0.1:9',
-      {},
-      timeout === undefined ? {} : { timeout }
-    );
+    super('http://127.0.0.1:9', {}, timeout === undefined ? {} : { timeout });
   }
 
   public async probe(): Promise<unknown> {
@@ -25,8 +21,7 @@ class TimeoutProbeAPI extends ExternalAPI {
 }
 
 const axiosTimeoutOf = (api: object): unknown =>
-  (api as { axios: { defaults: { timeout: unknown } } }).axios.defaults
-    .timeout;
+  (api as { axios: { defaults: { timeout: unknown } } }).axios.defaults.timeout;
 
 describe('API client request timeouts (DAN-92)', () => {
   it('applies a safe default timeout when none is provided', () => {
@@ -42,16 +37,23 @@ describe('API client request timeouts (DAN-92)', () => {
 
   it('gives JellyfinAPI the configured network timeout', () => {
     // Default settings carry network.apiRequestTimeout: 10000
-    assert.equal(axiosTimeoutOf(new JellyfinAPI('http://127.0.0.1:8096')), 10000);
+    assert.equal(
+      axiosTimeoutOf(new JellyfinAPI('http://127.0.0.1:8096')),
+      10000
+    );
   });
 
   it('gives Sonarr/Radarr clients the configured network timeout', () => {
     assert.equal(
-      axiosTimeoutOf(new SonarrAPI({ url: 'http://127.0.0.1:8989', apiKey: 'x' })),
+      axiosTimeoutOf(
+        new SonarrAPI({ url: 'http://127.0.0.1:8989', apiKey: 'x' })
+      ),
       10000
     );
     assert.equal(
-      axiosTimeoutOf(new RadarrAPI({ url: 'http://127.0.0.1:7878', apiKey: 'x' })),
+      axiosTimeoutOf(
+        new RadarrAPI({ url: 'http://127.0.0.1:7878', apiKey: 'x' })
+      ),
       10000
     );
   });
@@ -72,7 +74,10 @@ describe('API client request timeouts (DAN-92)', () => {
     refused.code = 'ECONNREFUSED';
     assert.equal(isRequestTimeoutError(refused), false);
 
-    assert.equal(isRequestTimeoutError(new Error('Request failed with status code 500')), false);
+    assert.equal(
+      isRequestTimeoutError(new Error('Request failed with status code 500')),
+      false
+    );
     assert.equal(isRequestTimeoutError(undefined), false);
   });
 
@@ -84,10 +89,7 @@ describe('API client request timeouts (DAN-92)', () => {
     await assert.rejects(() => api.probe());
 
     const elapsed = Date.now() - started;
-    assert.ok(
-      elapsed < 8000,
-      `expected fail-fast, took ${elapsed}ms`
-    );
+    assert.ok(elapsed < 8000, `expected fail-fast, took ${elapsed}ms`);
   });
 });
 
@@ -98,9 +100,8 @@ describe('upstreamErrorMessage (DAN-105)', () => {
         data: {
           errors: [
             {
-              message:
-                'The AniList API has been temporarily disabled due to severe stability issues.',
-              status: 403,
+              message: 'The AniList API has been temporarily disabled due to severe stability issues.';
+              status: 403;
             },
           ];
         };
@@ -129,7 +130,14 @@ describe('upstreamErrorMessage (DAN-105)', () => {
       response?: { data?: unknown };
     };
     err.response = {
-      data: { errors: [{ message: 'First' }, { message: '' }, {}, { message: 'Second' }] },
+      data: {
+        errors: [
+          { message: 'First' },
+          { message: '' },
+          {},
+          { message: 'Second' },
+        ],
+      },
     };
 
     assert.equal(

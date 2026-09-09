@@ -143,9 +143,7 @@ describe('POST /user/:id/settings/notifications defaultNotifyOn (DAN-48)', () =>
     assert.strictEqual(saved.status, 200);
     assert.strictEqual(saved.body.defaultNotifyOn, 'none');
 
-    const fetched = await agent.get(
-      `/user/${userId}/settings/notifications`
-    );
+    const fetched = await agent.get(`/user/${userId}/settings/notifications`);
     assert.strictEqual(fetched.status, 200);
     assert.strictEqual(fetched.body.defaultNotifyOn, 'none');
   });
@@ -153,9 +151,7 @@ describe('POST /user/:id/settings/notifications defaultNotifyOn (DAN-48)', () =>
   it('defaults to both when never set', async () => {
     const { agent, userId } = await loginAs('friend@seerr.dev', 'test1234');
 
-    const fetched = await agent.get(
-      `/user/${userId}/settings/notifications`
-    );
+    const fetched = await agent.get(`/user/${userId}/settings/notifications`);
     assert.strictEqual(fetched.status, 200);
     assert.strictEqual(fetched.body.defaultNotifyOn, 'both');
   });

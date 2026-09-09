@@ -4,11 +4,11 @@ import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { UserPushSubscription } from '@server/entity/UserPushSubscription';
 import { NotifyOn, Watchlist } from '@server/entity/Watchlist';
-import { getSettings } from '@server/lib/settings';
 import {
   deliverPush,
   type PushSubscriptionLike,
 } from '@server/lib/notifications/pushSender';
+import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { In } from 'typeorm';
 import webpush from 'web-push';

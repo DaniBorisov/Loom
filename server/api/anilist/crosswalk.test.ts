@@ -80,7 +80,11 @@ describe('AnimeCrosswalk', () => {
     const sizeBefore = crosswalk.size;
     crosswalk.reload();
     assert.ok(crosswalk.isLoaded(), 'crosswalk should be loaded after reload');
-    assert.equal(crosswalk.size, sizeBefore, 'size should be same after reload');
+    assert.equal(
+      crosswalk.size,
+      sizeBefore,
+      'size should be same after reload'
+    );
     const entry = crosswalk.getByAniListId(9253);
     assert.ok(entry, 'entry should still be findable after reload');
   });

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { describe, it } from 'node:test';
 import { join } from 'node:path';
+import { describe, it } from 'node:test';
 
 const SW_PATH = join(__dirname, '../../public/sw.js');
 const OFFLINE_PATH = join(__dirname, '../../public/offline.html');
@@ -44,7 +44,7 @@ describe('public/sw.js PWA offline caching contract (Epic 6 / DAN-40)', () => {
     // Regression guard for the route-ordering rule: the API route must be
     // registered BEFORE the broad same-origin cache-first handler, otherwise
     // API fetches would be served stale from the app-shell cache.
-    const apiIndex = sw.indexOf('startsWith(\'/api/\')');
+    const apiIndex = sw.indexOf("startsWith('/api/')");
     const cacheFirstIndex = sw.indexOf('new CacheFirst({');
     assert.ok(apiIndex !== -1, 'API route should exist');
     assert.ok(cacheFirstIndex !== -1, 'CacheFirst route should exist');

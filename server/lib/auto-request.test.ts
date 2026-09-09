@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, before, beforeEach, describe, it, mock } from 'node:test';
 
-import JellyfinAPI from '@server/api/jellyfin';
 import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
+import JellyfinAPI from '@server/api/jellyfin';
 import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
@@ -44,11 +44,7 @@ describe('processAutoRequest', () => {
   afterEach(() => mock.restoreAll());
 
   it('skips auto-request when status is not want_to_watch', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({})
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({}));
     const user = buildUser(Permission.AUTO_REQUEST | Permission.REQUEST);
 
     await processAutoRequest({
@@ -62,11 +58,7 @@ describe('processAutoRequest', () => {
   });
 
   it('skips auto-request when user lacks AUTO_REQUEST permission for movies', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({})
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({}));
     const user = buildUser(Permission.REQUEST);
 
     await processAutoRequest({
@@ -80,11 +72,7 @@ describe('processAutoRequest', () => {
   });
 
   it('skips auto-request when user lacks AUTO_REQUEST permission for TV', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({})
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({}));
     const user = buildUser(Permission.REQUEST_TV);
 
     await processAutoRequest({
@@ -98,11 +86,10 @@ describe('processAutoRequest', () => {
   });
 
   it('creates request for movie when Jellyfin reports not available', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({ id: 1, status: 2 })
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({
+      id: 1,
+      status: 2,
+    }));
 
     const settings = getSettings();
     settings.main.mediaServerType = MediaServerType.JELLYFIN;
@@ -135,7 +122,10 @@ describe('processAutoRequest', () => {
     assert.strictEqual(requestMock.mock.callCount(), 1);
 
     const callArgs = requestMock.mock.calls[0]!;
-    assert.strictEqual((callArgs.arguments[0] as any).mediaType, MediaType.MOVIE);
+    assert.strictEqual(
+      (callArgs.arguments[0] as any).mediaType,
+      MediaType.MOVIE
+    );
     assert.strictEqual((callArgs.arguments[2] as any).isAutoRequest, true);
 
     // Clean up admin credentials
@@ -146,11 +136,7 @@ describe('processAutoRequest', () => {
   });
 
   it('skips request when Jellyfin reports already available', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({})
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({}));
 
     const settings = getSettings();
     settings.main.mediaServerType = MediaServerType.JELLYFIN;
@@ -205,21 +191,19 @@ describe('processAutoRequest', () => {
   });
 
   it('resolves TVDB ID via crosswalk for anime', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({ id: 1 })
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({
+      id: 1,
+    }));
 
     const settings = getSettings();
     settings.main.mediaServerType = MediaServerType.PLEX;
 
     const crosswalk = getAnimeCrosswalk();
-    const crosswalkMock = mock.method(
-      crosswalk,
-      'getByTmdbId',
-      () => ({ AniList_id: 1, TheTVDB_id: 9999, TheMovieDB_id: 54321 })
-    );
+    const crosswalkMock = mock.method(crosswalk, 'getByTmdbId', () => ({
+      AniList_id: 1,
+      TheTVDB_id: 9999,
+      TheMovieDB_id: 54321,
+    }));
 
     const user = buildUser(Permission.AUTO_REQUEST | Permission.REQUEST_TV);
 
@@ -239,11 +223,9 @@ describe('processAutoRequest', () => {
   });
 
   it('falls back to TV when crosswalk has no TVDB ID for anime', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({ id: 1 })
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({
+      id: 1,
+    }));
 
     const settings = getSettings();
     settings.main.mediaServerType = MediaServerType.PLEX;
@@ -271,11 +253,9 @@ describe('processAutoRequest', () => {
   });
 
   it('skips Jellyfin check when server type is not Jellyfin/Emby', async () => {
-    const requestMock = mock.method(
-      MediaRequest,
-      'request',
-      async () => ({ id: 1 })
-    );
+    const requestMock = mock.method(MediaRequest, 'request', async () => ({
+      id: 1,
+    }));
 
     const settings = getSettings();
     settings.main.mediaServerType = MediaServerType.PLEX;

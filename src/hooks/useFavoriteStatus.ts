@@ -49,14 +49,10 @@ export const MAX_FAVORITE_BATCH_ITEMS = 100;
  * requests. List parents call this once with all visible items and pass the
  * individual results down to TitleCard via `favoriteStatus`.
  */
-export const useFavoriteStatusBatch = (
-  items?: FavoriteStatusBatchItem[]
-) => {
+export const useFavoriteStatusBatch = (items?: FavoriteStatusBatchItem[]) => {
   const sorted = (items ?? [])
     .filter((item) => Number.isFinite(item.mediaId))
-    .sort(
-      (a, b) => a.mediaId - b.mediaId || (a.source < b.source ? -1 : 1)
-    )
+    .sort((a, b) => a.mediaId - b.mediaId || (a.source < b.source ? -1 : 1))
     .slice(0, MAX_FAVORITE_BATCH_ITEMS);
   const key = sorted.length
     ? `/api/v1/favorites/check-batch:${JSON.stringify(sorted)}`

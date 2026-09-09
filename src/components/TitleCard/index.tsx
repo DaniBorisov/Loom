@@ -3,16 +3,16 @@ import BlocklistModal from '@app/components/BlocklistModal';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import LibraryBadge from '@app/components/Common/LibraryBadge';
-import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
+import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import StatusBadgeMini from '@app/components/Common/StatusBadgeMini';
 import Tooltip from '@app/components/Common/Tooltip';
 import RequestModal from '@app/components/RequestModal';
 import ErrorCard from '@app/components/TitleCard/ErrorCard';
 import Placeholder from '@app/components/TitleCard/Placeholder';
-import { useIsTouch } from '@app/hooks/useIsTouch';
 import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
 import { useFavoriteStatus } from '@app/hooks/useFavoriteStatus';
+import { useIsTouch } from '@app/hooks/useIsTouch';
 import useToasts from '@app/hooks/useToasts';
 import { Permission, UserType, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
@@ -79,10 +79,8 @@ const messages = defineMessages('components.TitleCard', {
   watchlistError: 'Something went wrong. Please try again.',
   addToFavorites: 'Add to favorites',
   removeFromFavorites: 'Remove from favorites',
-  favoriteSuccess:
-    '<strong>{title}</strong> added to favorites!',
-  favoriteRemoved:
-    '<strong>{title}</strong> removed from favorites.',
+  favoriteSuccess: '<strong>{title}</strong> added to favorites!',
+  favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
   favoriteError: 'Failed to update favorites.',
   notifyUpdated: 'Notification preference updated.',
   notifyUpdateError: 'Failed to update notification preference.',

@@ -49,8 +49,7 @@ afterEach(() => {
   mockUseUserState.error = undefined;
 });
 
-const currentHref = () =>
-  (window.location as unknown as { href: string }).href;
+const currentHref = () => (window.location as unknown as { href: string }).href;
 
 describe('UserContext session redirect (DAN-96)', () => {
   it('stays put on transport errors (server down, no response)', () => {

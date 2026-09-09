@@ -1,8 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddDefaultNotifyOnToUserSettings1782000000007
-  implements MigrationInterface
-{
+export class AddDefaultNotifyOnToUserSettings1782000000007 implements MigrationInterface {
   name = 'AddDefaultNotifyOnToUserSettings1782000000007';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

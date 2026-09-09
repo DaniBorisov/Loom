@@ -10,23 +10,19 @@ import { MediaRequest } from '@server/entity/MediaRequest';
 import { User } from '@server/entity/User';
 import { UserPushSubscription } from '@server/entity/UserPushSubscription';
 import { WatchedStatus } from '@server/entity/WatchedStatus';
-import {
-  NotifyOn,
-  Watchlist,
-  WatchlistStatus,
-} from '@server/entity/Watchlist';
+import { NotifyOn, Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
 import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
 import { notifyAvailableInLibrary } from '@server/lib/notifications/availabilityPush';
 import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
+import authRoutes from '@server/routes/auth';
+import favoritesRoutes from '@server/routes/favorites';
+import watchlistRoutes from '@server/routes/watchlist';
 import { setupTestDb } from '@server/test/db';
 import type { Express } from 'express';
 import express from 'express';
 import session from 'express-session';
 import request from 'supertest';
-import authRoutes from '@server/routes/auth';
-import favoritesRoutes from '@server/routes/favorites';
-import watchlistRoutes from '@server/routes/watchlist';
 
 let app: Express;
 
@@ -165,7 +161,9 @@ describe('Multi-user isolation (DAN-51)', () => {
 
     const friendAgent = await loginAs('friend@seerr.dev', 'test1234');
 
-    const list = await friendAgent.get('/api/v1/watchlist?status=want_to_watch');
+    const list = await friendAgent.get(
+      '/api/v1/watchlist?status=want_to_watch'
+    );
     assert.ok(
       (list.body.results as { tmdbId: number }[]).every(
         (item) => item.tmdbId !== 60201

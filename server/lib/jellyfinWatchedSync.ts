@@ -1,15 +1,15 @@
-import JellyfinAPI from '@server/api/jellyfin';
 import { isRequestTimeoutError } from '@server/api/externalapi';
+import JellyfinAPI from '@server/api/jellyfin';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { WatchedStatus } from '@server/entity/WatchedStatus';
 import { WatchlistStatus } from '@server/entity/Watchlist';
-import { syncWatchlistPlaybackState } from '@server/lib/jellyfinWatchedStatus';
 import {
   isJellyfinUnreachable,
   markJellyfinUnreachable,
 } from '@server/lib/jellyfinBreaker';
+import { syncWatchlistPlaybackState } from '@server/lib/jellyfinWatchedStatus';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { getHostname } from '@server/utils/getHostname';

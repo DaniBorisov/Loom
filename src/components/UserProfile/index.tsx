@@ -108,26 +108,24 @@ const UserProfile = () => {
   // Batched availability for both sliders below (DAN-98). Must stay above
   // the early returns to keep hook order stable.
   const profileWatchlistEntries = watchlistItems?.results ?? [];
-  const { data: profileWatchlistAvailability } =
-    useJellyfinAvailabilityBatch(
-      profileWatchlistEntries.length
-        ? profileWatchlistEntries.map((item) => ({
-            tmdbId: item.tmdbId,
-            type: item.mediaType,
-          }))
-        : undefined
-    );
+  const { data: profileWatchlistAvailability } = useJellyfinAvailabilityBatch(
+    profileWatchlistEntries.length
+      ? profileWatchlistEntries.map((item) => ({
+          tmdbId: item.tmdbId,
+          type: item.mediaType,
+        }))
+      : undefined
+  );
 
   const recentlyWatchedEntries = watchData?.recentlyWatched ?? [];
-  const { data: recentlyWatchedAvailability } =
-    useJellyfinAvailabilityBatch(
-      recentlyWatchedEntries.length
-        ? recentlyWatchedEntries.map((item) => ({
-            tmdbId: item.tmdbId,
-            type: item.mediaType,
-          }))
-        : undefined
-    );
+  const { data: recentlyWatchedAvailability } = useJellyfinAvailabilityBatch(
+    recentlyWatchedEntries.length
+      ? recentlyWatchedEntries.map((item) => ({
+          tmdbId: item.tmdbId,
+          type: item.mediaType,
+        }))
+      : undefined
+  );
 
   // Batched favorite status for both sliders below (DAN-99).
   const { data: profileWatchlistFavorites } = useFavoriteStatusBatch(

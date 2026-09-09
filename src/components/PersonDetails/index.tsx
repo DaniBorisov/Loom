@@ -200,9 +200,8 @@ const PersonDetails = () => {
                 status={media.mediaInfo?.status}
                 canExpand
                 favoriteStatus={
-                  favoriteData?.results[
-                    favoriteStatusKey(media.id, 'tmdb')
-                  ] ?? null
+                  favoriteData?.results[favoriteStatusKey(media.id, 'tmdb')] ??
+                  null
                 }
               />
               {media.character && (
@@ -246,9 +245,8 @@ const PersonDetails = () => {
                 status={media.mediaInfo?.status}
                 canExpand
                 favoriteStatus={
-                  favoriteData?.results[
-                    favoriteStatusKey(media.id, 'tmdb')
-                  ] ?? null
+                  favoriteData?.results[favoriteStatusKey(media.id, 'tmdb')] ??
+                  null
                 }
               />
               {media.job && (

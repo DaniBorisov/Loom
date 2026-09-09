@@ -681,8 +681,7 @@ userSettingsRoutes.get<{ id: string }, UserSettingsNotificationsResponse>(
         telegramSendSilently: user.settings?.telegramSendSilently,
         webPushEnabled: settings.webpush.enabled,
         notificationTypes: user.settings?.notificationTypes ?? {},
-        defaultNotifyOn:
-          user.settings?.defaultNotifyOn ?? NotifyOn.BOTH,
+        defaultNotifyOn: user.settings?.defaultNotifyOn ?? NotifyOn.BOTH,
       });
     } catch (e) {
       next({ status: 500, message: e.message });

@@ -35,8 +35,7 @@ const StatusChecker = () => {
   // Poll every 10s so an outage surfaces fast; tighten to 5s while the
   // connection is down so the banner clears quickly once the server is
   // back (DAN-96).
-  const connectionLost =
-    consecutiveFailures >= CONNECTION_LOST_THRESHOLD;
+  const connectionLost = consecutiveFailures >= CONNECTION_LOST_THRESHOLD;
 
   const { data, error } = useSWR<StatusResponse>(
     '/api/v1/status?checkUpdateAvailable=false',
@@ -99,34 +98,34 @@ const StatusChecker = () => {
           }
         >
           {hasPermission(Permission.ADMIN) && data.restartRequired ? (
-        <Modal
-          title={intl.formatMessage(messages.restartRequired)}
-          backgroundClickable={false}
-          onOk={() => {
-            setAlertDismissed(true);
-            if (data.commitTag !== process.env.commitTag) {
-              location.reload();
-            }
-          }}
-          okText={intl.formatMessage(globalMessages.close)}
-        >
-          {intl.formatMessage(messages.restartRequiredDescription)}
-        </Modal>
-      ) : (
-        <Modal
-          title={intl.formatMessage(messages.appUpdated, {
-            applicationTitle: settings.currentSettings.applicationTitle,
-          })}
-          onOk={() => location.reload()}
-          okText={intl.formatMessage(messages.reloadApp, {
-            applicationTitle: settings.currentSettings.applicationTitle,
-          })}
-          backgroundClickable={false}
-        >
-          {intl.formatMessage(messages.appUpdatedDescription)}
-          </Modal>
-        )}
-      </Transition>
+            <Modal
+              title={intl.formatMessage(messages.restartRequired)}
+              backgroundClickable={false}
+              onOk={() => {
+                setAlertDismissed(true);
+                if (data.commitTag !== process.env.commitTag) {
+                  location.reload();
+                }
+              }}
+              okText={intl.formatMessage(globalMessages.close)}
+            >
+              {intl.formatMessage(messages.restartRequiredDescription)}
+            </Modal>
+          ) : (
+            <Modal
+              title={intl.formatMessage(messages.appUpdated, {
+                applicationTitle: settings.currentSettings.applicationTitle,
+              })}
+              onOk={() => location.reload()}
+              okText={intl.formatMessage(messages.reloadApp, {
+                applicationTitle: settings.currentSettings.applicationTitle,
+              })}
+              backgroundClickable={false}
+            >
+              {intl.formatMessage(messages.appUpdatedDescription)}
+            </Modal>
+          )}
+        </Transition>
       )}
     </>
   );
