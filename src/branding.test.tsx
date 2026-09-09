@@ -46,11 +46,18 @@ describe('Loom branding (DAN-63)', () => {
   });
 
   it('serves Loom logo SVGs carrying the brand color', () => {
-    for (const file of ['public/logo_full.svg', 'public/logo_stacked.svg']) {
+    // Dark-surface wordmark (white text) and light-surface fallback.
+    for (const file of [
+      'public/logo_full.svg',
+      'public/logo_full_light.svg',
+      'public/logo_stacked.svg',
+    ]) {
       const svg = readFileSync(join(ROOT, file), 'utf8');
       expect(svg).toContain('#7A1F1F');
       expect(svg).not.toContain('Jellyseerr');
     }
+    const dark = readFileSync(join(ROOT, 'public/logo_full.svg'), 'utf8');
+    expect(dark).toContain('#FFFFFF');
   });
 
   it('links only splash screens that exist on disk', () => {

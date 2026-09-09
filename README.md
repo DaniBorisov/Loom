@@ -1,5 +1,8 @@
 <p align="center">
-<img src="./public/logo_full.svg" alt="Loom" style="margin: 20px 0;">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./public/logo_full.svg">
+  <img src="./public/logo_full_light.svg" alt="Loom" style="margin: 20px 0;">
+</picture>
 </p>
 
 # Loom
