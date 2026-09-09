@@ -58,12 +58,18 @@ interface SidebarLinkProps {
   dataTestId?: string;
 }
 
+// Landing page is the watchlist (DAN-56): the old dashboard entry now leads
+// to trending, and the watchlist entry also highlights `/`.
+export const dashboardHref = '/discover/trending';
+export const dashboardActiveRegExp = /^\/discover\/trending/;
+export const watchlistActiveRegExp = /^(\/$|\/discover\/watchlist)/;
+
 const SidebarLinks: SidebarLinkProps[] = [
   {
-    href: '/',
+    href: dashboardHref,
     messagesKey: 'dashboard',
     svgIcon: <SparklesIcon className="mr-3 h-6 w-6" />,
-    activeRegExp: /^\/(discover\/?)?$/,
+    activeRegExp: dashboardActiveRegExp,
   },
   {
     href: '/discover/movies',
@@ -93,7 +99,7 @@ const SidebarLinks: SidebarLinkProps[] = [
     href: '/discover/watchlist',
     messagesKey: 'watchlist',
     svgIcon: <ListBulletIcon className="mr-3 h-6 w-6" />,
-    activeRegExp: /^\/discover\/watchlist/,
+    activeRegExp: watchlistActiveRegExp,
   },
   {
     href: '/requests',
