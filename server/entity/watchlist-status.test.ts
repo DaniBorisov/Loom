@@ -5,7 +5,6 @@ import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { NotifyOn, Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
 import {
-  InvalidTransitionError,
   isValidTransition,
   transitionStatus,
 } from '@server/lib/watchlist-transitions';

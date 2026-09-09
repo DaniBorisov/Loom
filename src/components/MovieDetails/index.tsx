@@ -42,7 +42,6 @@ import {
   EyeSlashIcon,
   FilmIcon,
   HeartIcon,
-  MinusCircleIcon,
   PlayIcon,
   StarIcon,
   TicketIcon,
@@ -774,7 +773,9 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
               buttonType={'ghost'}
               className="z-40 mr-2"
               buttonSize={'md'}
-              onClick={isFavorited ? onClickRemoveFavoriteBtn : onClickFavoriteBtn}
+              onClick={
+                isFavorited ? onClickRemoveFavoriteBtn : onClickFavoriteBtn
+              }
             >
               {isFavorited ? (
                 <HeartIconSolid className="text-red-400" />

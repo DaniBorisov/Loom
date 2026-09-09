@@ -13,13 +13,13 @@ import type {
   MediaResultsResponse,
   MediaWatchDataResponse,
 } from '@server/interfaces/api/mediaInterfaces';
-import { Permission } from '@server/lib/permissions';
-import { getSettings } from '@server/lib/settings';
 import {
   clearJellyfinUnreachable,
   isJellyfinUnreachable,
   markJellyfinUnreachable,
 } from '@server/lib/jellyfinBreaker';
+import { Permission } from '@server/lib/permissions';
+import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { isAuthenticated } from '@server/middleware/auth';
 import { getHostname } from '@server/utils/getHostname';
@@ -419,7 +419,7 @@ mediaRoutes.get<{ id: string }, MediaWatchDataResponse>(
 mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
   '/jellyfin-check/:tmdbId',
   isAuthenticated(),
-  async (req, res, next) => {
+  async (req, res) => {
     const settings = getSettings();
     const mediaServerType = settings.main.mediaServerType;
 
@@ -433,7 +433,11 @@ mediaRoutes.get<{ tmdbId: string }, { available: boolean }>(
     const tmdbId = req.params.tmdbId;
     const mediaType = req.query.type as string | undefined;
     const includeItemTypes =
-      mediaType === 'tv' ? 'Series' : mediaType === 'movie' ? 'Movie' : 'Movie,Series';
+      mediaType === 'tv'
+        ? 'Series'
+        : mediaType === 'movie'
+          ? 'Movie'
+          : 'Movie,Series';
 
     // Circuit breaker (DAN-97): every rendered card hits this route, and
     // during an outage each one would otherwise re-pay the full 10s request
@@ -554,12 +558,7 @@ mediaRoutes.post<never, { results: Record<string, boolean> }>(
     const userRepository = getRepository(User);
     const admin = await userRepository.findOne({
       where: { id: 1 },
-      select: [
-        'id',
-        'jellyfinAuthToken',
-        'jellyfinDeviceId',
-        'jellyfinUserId',
-      ],
+      select: ['id', 'jellyfinAuthToken', 'jellyfinDeviceId', 'jellyfinUserId'],
     });
 
     if (!admin || !admin.jellyfinAuthToken) {
@@ -584,8 +583,7 @@ mediaRoutes.post<never, { results: Record<string, boolean> }>(
         results[key] = false;
         continue;
       }
-      const includeItemTypes =
-        item.type === 'movie' ? 'Movie' : 'Series';
+      const includeItemTypes = item.type === 'movie' ? 'Movie' : 'Series';
       try {
         const found = await jellyfin.lookupByProviderId(
           String(item.tmdbId),

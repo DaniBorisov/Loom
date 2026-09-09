@@ -2,14 +2,12 @@ import assert from 'node:assert/strict';
 import { before, beforeEach, describe, it, mock } from 'node:test';
 
 import JellyfinAPI from '@server/api/jellyfin';
-import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
-import { Permission } from '@server/lib/permissions';
-import { getSettings } from '@server/lib/settings';
 import cacheManager from '@server/lib/cache';
 import { JELLYFIN_UNREACHABLE_KEY } from '@server/lib/jellyfinBreaker';
+import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
 import { setupTestDb } from '@server/test/db';
 import type { Express } from 'express';
@@ -39,6 +37,7 @@ function createApp() {
       err: { status?: number; message?: string },
       _req: express.Request,
       res: express.Response,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _next: express.NextFunction
     ) => {
       res
@@ -226,7 +225,8 @@ describe('GET /media/jellyfin-check/:tmdbId', () => {
     }
   });
 
-  it('forwards type query parameter to lookupByProviderId', async () => {    const settings = getSettings();
+  it('forwards type query parameter to lookupByProviderId', async () => {
+    const settings = getSettings();
     const priorType = settings.main.mediaServerType;
     settings.main.mediaServerType = MediaServerType.JELLYFIN;
 
@@ -253,7 +253,7 @@ describe('GET /media/jellyfin-check/:tmdbId', () => {
       assert.strictEqual(res.body.available, false);
       assert.strictEqual(lookupMock.mock.callCount(), 1);
       const callArgs = lookupMock.mock.calls[0]!;
-      assert.strictEqual((callArgs.arguments[2] as any), 'Series');
+      assert.strictEqual(callArgs.arguments[2] as any, 'Series');
     } finally {
       admin.jellyfinAuthToken = priorToken;
       admin.jellyfinUserId = priorUserId;
@@ -318,7 +318,8 @@ describe('GET /media/jellyfin-check/:tmdbId', () => {
     }
   });
 
-  it('clears the breaker after a successful check (recovery)', async () => {    const settings = getSettings();
+  it('clears the breaker after a successful check (recovery)', async () => {
+    const settings = getSettings();
     const priorType = settings.main.mediaServerType;
     settings.main.mediaServerType = MediaServerType.JELLYFIN;
 
@@ -368,9 +369,7 @@ describe('GET /media/jellyfin-check/:tmdbId', () => {
         assert.strictEqual(recovered.body.available, true);
         assert.strictEqual(succeedingLookup.mock.callCount(), 1);
         assert.strictEqual(
-          cacheManager
-            .getCache('jellyfin')
-            .data.get(JELLYFIN_UNREACHABLE_KEY),
+          cacheManager.getCache('jellyfin').data.get(JELLYFIN_UNREACHABLE_KEY),
           undefined
         );
       } finally {
@@ -425,9 +424,7 @@ describe('POST /media/jellyfin-check-batch (DAN-98)', () => {
       JellyfinAPI.prototype as any,
       'lookupByProviderId',
       async (providerId: string) =>
-        providerId === '11111'
-          ? { Id: 'found-1', Name: 'Found Movie' }
-          : null
+        providerId === '11111' ? { Id: 'found-1', Name: 'Found Movie' } : null
     );
 
     try {
