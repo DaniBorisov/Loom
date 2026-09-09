@@ -115,7 +115,7 @@ const FavoritesList = () => {
           message={intl.formatMessage(messages.empty)}
           action={
             <Link
-              href="/discover/trending"
+              href="/discover"
               className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
             >
               Browse Media

@@ -6,9 +6,10 @@ import {
 import { describe, expect, it } from 'vitest';
 
 describe('navigation config (DAN-56)', () => {
-  it('points the dashboard entry at trending', () => {
-    expect(dashboardHref).toBe('/discover/trending');
-    expect(dashboardActiveRegExp.test('/discover/trending')).toBe(true);
+  it('points the dashboard entry at the discover overview', () => {
+    expect(dashboardHref).toBe('/discover');
+    expect(dashboardActiveRegExp.test('/discover')).toBe(true);
+    expect(dashboardActiveRegExp.test('/discover/trending')).toBe(false);
     expect(dashboardActiveRegExp.test('/')).toBe(false);
     expect(dashboardActiveRegExp.test('/discover/watchlist')).toBe(false);
   });
