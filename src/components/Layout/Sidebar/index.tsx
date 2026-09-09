@@ -58,10 +58,10 @@ interface SidebarLinkProps {
   dataTestId?: string;
 }
 
-// Landing page is the watchlist (DAN-56): the old dashboard entry now leads
-// to trending, and the watchlist entry also highlights `/`.
-export const dashboardHref = '/discover/trending';
-export const dashboardActiveRegExp = /^\/discover\/trending/;
+// Landing page is the watchlist (DAN-56): the dashboard entry leads to the
+// full discover overview, and the watchlist entry also highlights `/`.
+export const dashboardHref = '/discover';
+export const dashboardActiveRegExp = /^\/discover\/?$/;
 export const watchlistActiveRegExp = /^(\/$|\/discover\/watchlist)/;
 
 const SidebarLinks: SidebarLinkProps[] = [
