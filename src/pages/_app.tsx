@@ -1,5 +1,5 @@
-import Layout from '@app/components/Layout';
 import InstallAppPrompt from '@app/components/InstallAppPrompt';
+import Layout from '@app/components/Layout';
 import LoadingBar from '@app/components/LoadingBar';
 import PWAHeader from '@app/components/PWAHeader';
 import ServiceWorkerSetup from '@app/components/ServiceWorkerSetup';

@@ -39,10 +39,7 @@ export const getNotificationPermissionState =
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return 'unsupported';
     }
-    return Notification.permission as
-      | 'granted'
-      | 'denied'
-      | 'default';
+    return Notification.permission as 'granted' | 'denied' | 'default';
   };
 
 /**

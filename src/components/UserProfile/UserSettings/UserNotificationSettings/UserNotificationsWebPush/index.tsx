@@ -1,8 +1,8 @@
 import Alert from '@app/components/Common/Alert';
 import Button from '@app/components/Common/Button';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
-import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
+import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import NotificationTypeSelector, {
   ALL_NOTIFICATIONS,
 } from '@app/components/NotificationTypeSelector';
@@ -12,6 +12,7 @@ import useToasts from '@app/hooks/useToasts';
 import { useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
+import type { NotificationPermissionState } from '@app/utils/pushSubscriptionHelpers';
 import {
   getNotificationPermissionState,
   getPushSubscription,
@@ -20,7 +21,6 @@ import {
   unsubscribeToPushNotifications,
   verifyPushSubscription,
 } from '@app/utils/pushSubscriptionHelpers';
-import type { NotificationPermissionState } from '@app/utils/pushSubscriptionHelpers';
 import { ArrowDownOnSquareIcon } from '@heroicons/react/24/outline';
 import {
   CloudArrowDownIcon,
@@ -70,8 +70,9 @@ const UserWebPushSettings = () => {
   const [subEndpoint, setSubEndpoint] = useState<string | null>(null);
   // Browser permission drives the enable flow (DAN-44): denied can never
   // be re-prompted, so the UI guides to browser settings instead.
-  const [permission, setPermission] =
-    useState<NotificationPermissionState>(getNotificationPermissionState);
+  const [permission, setPermission] = useState<NotificationPermissionState>(
+    getNotificationPermissionState
+  );
   const {
     data,
     error,

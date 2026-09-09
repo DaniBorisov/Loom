@@ -45,9 +45,7 @@ export const useJellyfinAvailabilityBatch = (
 ) => {
   const sorted = (items ?? [])
     .filter((item) => Number.isFinite(item.tmdbId))
-    .sort(
-      (a, b) => a.tmdbId - b.tmdbId || (a.type < b.type ? -1 : 1)
-    );
+    .sort((a, b) => a.tmdbId - b.tmdbId || (a.type < b.type ? -1 : 1));
   const key = sorted.length
     ? `/api/v1/media/jellyfin-check-batch:${JSON.stringify(sorted)}`
     : null;

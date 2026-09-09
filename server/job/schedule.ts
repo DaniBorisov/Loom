@@ -7,12 +7,12 @@ import * as crosswalkSync from '@server/lib/crosswalkSync';
 import downloadTracker from '@server/lib/downloadtracker';
 import ImageProxy from '@server/lib/imageproxy';
 import { syncPlayedItems } from '@server/lib/jellyfinWatchedSync';
+import * as malListSync from '@server/lib/malListSync';
 import {
   cancelAiringCheck,
   isAiringCheckRunning,
   runAiringCheck,
 } from '@server/lib/notifications/airingPush';
-import * as malListSync from '@server/lib/malListSync';
 import refreshToken from '@server/lib/refreshToken';
 import {
   jellyfinFullScanner,

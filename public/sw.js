@@ -37,10 +37,7 @@ registerRoute(
 // API responses must NOT be cached offline-first: stale watchlist/request data
 // would be actively misleading. Registered BEFORE the same-origin static route
 // below so API fetches are never captured by the cache-first handler.
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkOnly()
-);
+registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
 // Other same-origin static assets (e.g. images) cached cache-first so the shell
 // doesn't blank out offline. Images are non-essential, so this is best-effort.
@@ -205,7 +202,9 @@ self.addEventListener(
           });
           const matching = allClients.find((client) => {
             try {
-              return new URL(client.url).pathname === notificationData.actionUrl;
+              return (
+                new URL(client.url).pathname === notificationData.actionUrl
+              );
             } catch {
               return false;
             }

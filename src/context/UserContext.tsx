@@ -37,8 +37,7 @@ export const UserContext = ({ initialUser, children }: UserContextProps) => {
     const status = (
       error as unknown as { response?: { status?: number } } | undefined
     )?.response?.status;
-    const sessionInvalid =
-      !user || status === 401 || status === 403;
+    const sessionInvalid = !user || status === 401 || status === 403;
     if (sessionInvalid) {
       routing.current = true;
       location.href = '/login';

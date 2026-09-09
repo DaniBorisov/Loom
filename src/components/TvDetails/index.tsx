@@ -46,7 +46,6 @@ import {
   EyeSlashIcon,
   FilmIcon,
   HeartIcon as HeartIconSolid,
-  MinusCircleIcon,
   PlayIcon,
   StarIcon,
 } from '@heroicons/react/24/solid';

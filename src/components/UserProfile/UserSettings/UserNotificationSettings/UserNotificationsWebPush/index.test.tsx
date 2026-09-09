@@ -9,8 +9,8 @@ import {
 import axios from 'axios';
 import { IntlProvider } from 'react-intl';
 import useSWR from 'swr';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('swr', () => ({
   default: vi.fn(),

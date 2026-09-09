@@ -1,6 +1,6 @@
+import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import TitleCard from '@app/components/TitleCard';
 import type { FavoriteStatusResult } from '@app/hooks/useFavoriteStatus';
-import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import { Permission, useUser } from '@app/hooks/useUser';
 import type { MovieDetails } from '@server/models/Movie';
@@ -74,8 +74,7 @@ const TmdbTitleCard = ({
     type
   );
 
-  const libraryAvailable =
-    libraryAvailableOverride ?? libraryData?.available;
+  const libraryAvailable = libraryAvailableOverride ?? libraryData?.available;
 
   if (!title && !error) {
     return (
@@ -135,14 +134,14 @@ const TmdbTitleCard = ({
       title={title.title}
       userScore={title.voteAverage}
       year={title.releaseDate}
-        mediaType={'movie'}
-        canExpand={canExpand}
-        mutateParent={mutateParent}
-        source={source}
-        favoriteStatus={favoriteStatus}
-        watchlistId={watchlistId}
-        notifyOn={notifyOn}
-        libraryAvailable={libraryAvailable}
+      mediaType={'movie'}
+      canExpand={canExpand}
+      mutateParent={mutateParent}
+      source={source}
+      favoriteStatus={favoriteStatus}
+      watchlistId={watchlistId}
+      notifyOn={notifyOn}
+      libraryAvailable={libraryAvailable}
     />
   ) : (
     <TitleCard
@@ -157,14 +156,14 @@ const TmdbTitleCard = ({
       title={title.name}
       userScore={title.voteAverage}
       year={title.firstAirDate}
-        mediaType={'tv'}
-        canExpand={canExpand}
-        mutateParent={mutateParent}
-        source={source}
-        favoriteStatus={favoriteStatus}
-        watchlistId={watchlistId}
-        notifyOn={notifyOn}
-        libraryAvailable={libraryAvailable}
+      mediaType={'tv'}
+      canExpand={canExpand}
+      mutateParent={mutateParent}
+      source={source}
+      favoriteStatus={favoriteStatus}
+      watchlistId={watchlistId}
+      notifyOn={notifyOn}
+      libraryAvailable={libraryAvailable}
     />
   );
 };

@@ -6,11 +6,11 @@ import { getRepository } from '@server/datasource';
 import { AiringState } from '@server/entity/AiringState';
 import { UserPushSubscription } from '@server/entity/UserPushSubscription';
 import { NotifyOn, Watchlist } from '@server/entity/Watchlist';
+import { ensureVapid } from '@server/lib/notifications/availabilityPush';
 import {
   deliverPush,
   type PushSubscriptionLike,
 } from '@server/lib/notifications/pushSender';
-import { ensureVapid } from '@server/lib/notifications/availabilityPush';
 import logger from '@server/logger';
 import { In } from 'typeorm';
 
@@ -334,8 +334,7 @@ const checkAnimeGroup = async (
     });
   } else if (
     sched.episode !== existing.lastEpisode ||
-    new Date(sched.airingAt).getTime() !==
-      existing.lastAiredAt?.getTime()
+    new Date(sched.airingAt).getTime() !== existing.lastAiredAt?.getTime()
   ) {
     await storeState(ctx.stateRepository, group.tmdbId, MediaType.ANIME, {
       tmdbId: group.tmdbId,

@@ -1,5 +1,5 @@
-import { MediaType } from '@server/constants/media';
 import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
+import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { WatchlistStatus } from '@server/entity/Watchlist';
@@ -290,10 +290,7 @@ interface ServarrWebhookPayload {
   movie?: { title?: string; tmdbId?: number };
 }
 
-const checkServarrSecret = (
-  req: express.Request,
-  envVar: string
-): boolean => {
+const checkServarrSecret = (req: express.Request, envVar: string): boolean => {
   const configuredSecret = process.env[envVar] ?? '';
   if (!configuredSecret) {
     return false;

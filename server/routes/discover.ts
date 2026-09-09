@@ -13,8 +13,8 @@ import type {
   GenreSliderItem,
   WatchlistResponse,
 } from '@server/interfaces/api/discoverInterfaces';
-import { getSettings } from '@server/lib/settings';
 import { resolveAnilistIdToTmdbId } from '@server/lib/animeResolve';
+import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { mapProductionCompany } from '@server/models/Movie';
 import {

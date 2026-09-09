@@ -9,9 +9,10 @@ function buildJellyfin(): JellyfinAPI {
   return new JellyfinAPI('http://localhost:8096', 'test-token');
 }
 
+import type { AxiosStatic } from 'axios';
+
 function getAxios(jf: JellyfinAPI) {
-  return (jf as unknown as { axios: { get: typeof import('axios').default.get } })
-    .axios;
+  return (jf as unknown as { axios: { get: AxiosStatic['get'] } }).axios;
 }
 
 describe('JellyfinAPI lookupByProviderId', () => {

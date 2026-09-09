@@ -1,14 +1,9 @@
 import StatusChecker from '@app/components/StatusChecker';
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 import useSWR from 'swr';
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('swr', () => ({
   default: vi.fn(),

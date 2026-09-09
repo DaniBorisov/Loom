@@ -1,5 +1,5 @@
-import TitleCard from '@app/components/TitleCard';
 import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
+import TitleCard from '@app/components/TitleCard';
 import {
   cleanup,
   fireEvent,
@@ -9,8 +9,8 @@ import {
 } from '@testing-library/react';
 import axios from 'axios';
 import { IntlProvider } from 'react-intl';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/image', () => ({
   default: ({ alt }: { alt?: string }) => <span>{alt ?? ''}</span>,

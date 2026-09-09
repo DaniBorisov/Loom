@@ -1,13 +1,13 @@
+import type { AvailabilityBatchItem } from '@app/hooks/useJellyfinAvailability';
 import {
   availabilityResultKey,
   useJellyfinAvailabilityBatch,
 } from '@app/hooks/useJellyfinAvailability';
-import type { AvailabilityBatchItem } from '@app/hooks/useJellyfinAvailability';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { IntlProvider } from 'react-intl';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('axios', () => ({
   default: { post: vi.fn() },

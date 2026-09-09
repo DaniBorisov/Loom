@@ -11,14 +11,14 @@ import Media from '@server/entity/Media';
 import { MediaRequest } from '@server/entity/MediaRequest';
 import { User } from '@server/entity/User';
 import { Permission } from '@server/lib/permissions';
+import { checkUser } from '@server/middleware/auth';
+import authRoutes from '@server/routes/auth';
+import requestRoutes from '@server/routes/request';
 import { setupTestDb } from '@server/test/db';
 import type { Express } from 'express';
 import express from 'express';
 import session from 'express-session';
 import request from 'supertest';
-import authRoutes from '../routes/auth';
-import requestRoutes from '../routes/request';
-import { checkUser } from '@server/middleware/auth';
 
 const sendNotificationMock = mock.method(
   MediaRequest,
@@ -46,6 +46,7 @@ function createApp() {
       err: { status?: number; message?: string },
       _req: express.Request,
       res: express.Response,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _next: express.NextFunction
     ) => {
       res
@@ -66,14 +67,16 @@ beforeEach(() => {
 
 setupTestDb();
 
-async function loginAs(email: string, _password = 'test1234') {
+async function loginAs(email: string) {
   const settings = (await import('@server/lib/settings')).getSettings();
   const priorLocalLogin = settings.main.localLogin;
   settings.main.localLogin = true;
 
   try {
     const agent = request.agent(app);
-    const res = await agent.post('/auth/local').send({ email, password: 'test1234' });
+    const res = await agent
+      .post('/auth/local')
+      .send({ email, password: 'test1234' });
     assert.strictEqual(res.status, 200);
     return agent;
   } finally {

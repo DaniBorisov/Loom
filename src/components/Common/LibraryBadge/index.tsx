@@ -12,8 +12,8 @@ const LibraryBadge = ({ shrink = false }: LibraryBadgeProps) => {
       }`}
     >
       <div
-        className={`rounded-full border-green-400 bg-green-500/80 ring-green-400 text-green-100 ${
-          shrink ? 'w-4 sm:w-5 border p-0' : 'w-5 ring-1 p-0.5'
+        className={`rounded-full border-green-400 bg-green-500/80 text-green-100 ring-green-400 ${
+          shrink ? 'w-4 border p-0 sm:w-5' : 'w-5 p-0.5 ring-1'
         }`}
       >
         <CheckCircleIcon />

@@ -1,8 +1,8 @@
 import DiscoverWatchlist from '@app/components/Discover/DiscoverWatchlist';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('swr/infinite', () => ({
   default: vi.fn(),
@@ -67,14 +67,16 @@ const activeKey = () => {
 
 const renderList = (size = 1) => {
   const setSize = vi.fn();
-  mockedInfinite.mockImplementation((getKey: (index: number, prev: unknown) => string) => ({
-    data: [pageOne],
-    error: undefined,
-    size,
-    setSize,
-    // Expose the resolved key so tests can assert the active tab is used
-    key: getKey(0, null),
-  }));
+  mockedInfinite.mockImplementation(
+    (getKey: (index: number, prev: unknown) => string) => ({
+      data: [pageOne],
+      error: undefined,
+      size,
+      setSize,
+      // Expose the resolved key so tests can assert the active tab is used
+      key: getKey(0, null),
+    })
+  );
   render(
     <IntlProvider locale="en" defaultLocale="en">
       <DiscoverWatchlist />

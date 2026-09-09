@@ -8,11 +8,11 @@ import { User } from '@server/entity/User';
 import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
 import { setupTestDb } from '@server/test/db';
-import assert from 'node:assert/strict';
-import { before, describe, it } from 'node:test';
 import type { Express } from 'express';
 import express from 'express';
 import session from 'express-session';
+import assert from 'node:assert/strict';
+import { before, describe, it } from 'node:test';
 import request from 'supertest';
 import authRoutes from './auth';
 import favoritesRoutes from './favorites';
@@ -37,6 +37,7 @@ function createApp() {
       err: { status?: number; message?: string },
       _req: express.Request,
       res: express.Response,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _next: express.NextFunction
     ) => {
       res
@@ -197,7 +198,7 @@ describe('Favorite routes (HTTP-level)', () => {
     app = createApp();
   });
 
-  it('should prevent user B from deleting user A\'s favorite via DELETE', async () => {
+  it("should prevent user B from deleting user A's favorite via DELETE", async () => {
     const favRepo = getRepository(Favorite);
 
     // Login as admin and create a favorite
@@ -210,9 +211,7 @@ describe('Favorite routes (HTTP-level)', () => {
 
     // Login as friend and try to delete admin's favorite
     const friendAgent = await loginAs('friend@seerr.dev', 'test1234');
-    const deleteRes = await friendAgent.delete(
-      `/api/v1/favorites/${favId}`
-    );
+    const deleteRes = await friendAgent.delete(`/api/v1/favorites/${favId}`);
     assert.strictEqual(deleteRes.status, 403);
 
     // Favorite should still exist
@@ -240,7 +239,6 @@ describe('Favorite routes (HTTP-level)', () => {
   });
 
   it('should resolve AniList ID to TMDB ID when favoriting', async () => {
-
     const favRepo = getRepository(Favorite);
 
     const adminAgent = await loginAs('admin@seerr.dev', 'test1234');

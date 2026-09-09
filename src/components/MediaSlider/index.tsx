@@ -2,11 +2,11 @@ import ShowMoreCard from '@app/components/MediaSlider/ShowMoreCard';
 import PersonCard from '@app/components/PersonCard';
 import Slider from '@app/components/Slider';
 import TitleCard from '@app/components/TitleCard';
+import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import {
   favoriteStatusKey,
   useFavoriteStatusBatch,
 } from '@app/hooks/useFavoriteStatus';
-import type { FavoriteStatusBatchItem } from '@app/hooks/useFavoriteStatus';
 import useSettings from '@app/hooks/useSettings';
 import { useUser } from '@app/hooks/useUser';
 import { ArrowRightCircleIcon } from '@heroicons/react/24/outline';
@@ -167,9 +167,8 @@ const MediaSlider = ({
             inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
             source="anilist"
             favoriteStatus={
-              favoriteData?.results[
-                favoriteStatusKey(title.id, 'anilist')
-              ] ?? null
+              favoriteData?.results[favoriteStatusKey(title.id, 'anilist')] ??
+              null
             }
           />
         );

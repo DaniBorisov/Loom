@@ -1,20 +1,16 @@
 import assert from 'node:assert/strict';
 import { before, describe, it, mock } from 'node:test';
 
-import JellyfinAPI from '@server/api/jellyfin';
 import ExternalAPI from '@server/api/externalapi';
+import JellyfinAPI from '@server/api/jellyfin';
 import { MediaServerType } from '@server/constants/server';
 import { MediaRequest } from '@server/entity/MediaRequest';
 
+import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import { UserSettings } from '@server/entity/UserSettings';
-import {
-  Watchlist,
-  NotifyOn,
-  WatchlistStatus,
-} from '@server/entity/Watchlist';
-import { MediaType } from '@server/constants/media';
+import { NotifyOn, Watchlist, WatchlistStatus } from '@server/entity/Watchlist';
 import { getSettings } from '@server/lib/settings';
 import { checkUser } from '@server/middleware/auth';
 import { setupTestDb } from '@server/test/db';
@@ -45,6 +41,7 @@ function createApp() {
       err: { status?: number; message?: string },
       _req: express.Request,
       res: express.Response,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _next: express.NextFunction
     ) => {
       res
@@ -219,10 +216,9 @@ describe('Watchlist routes (HTTP-level)', () => {
     );
   }
 
-  it('should prevent user B from patching user A\'s watchlist item', async () => {
+  it("should prevent user B from patching user A's watchlist item", async () => {
     const userRepo = getRepository(User);
     const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
-    const friend = await userRepo.findOneByOrFail({ email: 'friend@seerr.dev' });
 
     // Seed a watchlist item owned by admin
     const wl = await seedWatchlistItem(admin, 99001);
@@ -308,7 +304,7 @@ describe('Watchlist routes (HTTP-level)', () => {
     assert.ok(manualItem);
   });
 
-  it('should not affect another user\'s MAL-imported items (cross-user isolation)', async () => {
+  it("should not affect another user's MAL-imported items (cross-user isolation)", async () => {
     const userRepo = getRepository(User);
     const admin = await userRepo.findOneByOrFail({ email: 'admin@seerr.dev' });
     const friend = await userRepo.findOneByOrFail({
@@ -443,6 +439,9 @@ describe('Watchlist notifyOn preferences (DAN-48)', () => {
   before(() => {
     // Clear the DAN-93 describe's unrestored mocks, then stub TMDB +
     // Jellyfin behind the route once (mock.method cannot re-mock).
+    // MediaRequest.request is stubbed too: POST fires processAutoRequest
+    // in the background, and its real DB writes would otherwise race later
+    // tests' schema resets (flaky "no such table" failures in full runs).
     mock.restoreAll();
     mock.method(ExternalAPI.prototype as never, 'get' as never, async () => ({
       id: 72001,
@@ -453,6 +452,7 @@ describe('Watchlist notifyOn preferences (DAN-48)', () => {
       'lookupByProviderId' as never,
       async () => null
     );
+    mock.method(MediaRequest, 'request', async () => ({ id: 1, status: 2 }));
   });
 
   async function setDefaultNotifyOn(email: string, value: string) {
@@ -493,7 +493,6 @@ describe('Watchlist notifyOn preferences (DAN-48)', () => {
   });
 
   it('defaults to both when the user has no settings row', async () => {
-
     const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
     const res = await adminAgent
       .post('/api/v1/watchlist')
@@ -541,9 +540,7 @@ describe('Watchlist notifyOn preferences (DAN-48)', () => {
   it('PATCH rejects empty bodies and unknown rows', async () => {
     const adminAgent = await loginAs('admin@seerr.dev', 'test1234');
 
-    const empty = await adminAgent
-      .patch('/api/v1/watchlist/999999')
-      .send({});
+    const empty = await adminAgent.patch('/api/v1/watchlist/999999').send({});
     assert.strictEqual(empty.status, 400);
 
     const missing = await adminAgent

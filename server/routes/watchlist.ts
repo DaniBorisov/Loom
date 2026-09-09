@@ -1,3 +1,4 @@
+import { getRepository } from '@server/datasource';
 import {
   DuplicateWatchlistRequestError,
   NotFoundError,
@@ -7,7 +8,6 @@ import {
 import logger from '@server/logger';
 import { Router } from 'express';
 import { QueryFailedError } from 'typeorm';
-import { getRepository } from '@server/datasource';
 
 import { MediaType } from '@server/constants/media';
 import { watchlistCreate } from '@server/interfaces/api/watchlistCreate';
@@ -177,11 +177,7 @@ watchlistRoutes.delete('/:id', async (req, res, next) => {
       });
     }
 
-    await Watchlist.deleteWatchlist(
-      Number(req.params.id),
-      mediaType,
-      req.user
-    );
+    await Watchlist.deleteWatchlist(Number(req.params.id), mediaType, req.user);
     return res.status(204).send();
   } catch (e) {
     if (e instanceof NotFoundError) {
@@ -214,10 +210,7 @@ watchlistRoutes.get('/', async (req, res, next) => {
       requestedBy: { id: req.user.id },
     };
 
-    if (
-      statusFilter &&
-      Object.values(WatchlistStatus).includes(statusFilter)
-    ) {
+    if (statusFilter && Object.values(WatchlistStatus).includes(statusFilter)) {
       where.status = statusFilter;
     }
 

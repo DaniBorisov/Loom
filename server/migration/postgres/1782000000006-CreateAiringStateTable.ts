@@ -1,8 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateAiringStateTable1782000000006
-  implements MigrationInterface
-{
+export class CreateAiringStateTable1782000000006 implements MigrationInterface {
   name = 'CreateAiringStateTable1782000000006';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

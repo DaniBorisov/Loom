@@ -15,13 +15,13 @@ import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
-import type { Library } from '@server/lib/settings';
-import { getSettings } from '@server/lib/settings';
 import cacheManager from '@server/lib/cache';
 import {
   JELLYFIN_UNREACHABLE_KEY,
   markJellyfinUnreachable,
 } from '@server/lib/jellyfinBreaker';
+import type { Library } from '@server/lib/settings';
+import { getSettings } from '@server/lib/settings';
 import { setupTestDb } from '@server/test/db';
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
@@ -544,9 +544,8 @@ describe('Jellyfin Scanner', () => {
       // 25 items with the default bundle size of 20: the first bundle pays
       // for its (concurrent) attempts, the second bundle must abort.
       getLibraryContentsImpl = async () =>
-        Array.from(
-          { length: 25 },
-          (_, i) => fakeJellyfinMovieItem(`jf-movie-${i}`)
+        Array.from({ length: 25 }, (_, i) =>
+          fakeJellyfinMovieItem(`jf-movie-${i}`)
         );
 
       let itemCalls = 0;

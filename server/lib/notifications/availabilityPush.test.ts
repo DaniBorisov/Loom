@@ -18,8 +18,9 @@ setupTestDb();
 
 // TheMovieDb methods are instance arrow-function properties — patch via
 // defineProperty, not mock.method (same seam as availabilitySync.test.ts).
-let getShowByTvdbIdImpl: (args: { tvdbId: number }) => Promise<{ id: number }> =
-  async () => ({ id: 0 });
+let getShowByTvdbIdImpl: (args: {
+  tvdbId: number;
+}) => Promise<{ id: number }> = async () => ({ id: 0 });
 
 Object.defineProperty(TheMovieDb.prototype, 'getShowByTvdbId', {
   get() {
@@ -148,12 +149,7 @@ describe('availability push trigger (DAN-46)', () => {
   });
 
   it('deletes dead subscriptions on permanent failure and keeps transient ones', async () => {
-    await seedWatchlist(
-      'admin@seerr.dev',
-      30401,
-      MediaType.TV,
-      NotifyOn.BOTH
-    );
+    await seedWatchlist('admin@seerr.dev', 30401, MediaType.TV, NotifyOn.BOTH);
     const dead = await seedSubscription(
       'admin@seerr.dev',
       'https://push.example/dead-1'

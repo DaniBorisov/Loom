@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it, mock } from 'node:test';
 
-import JellyfinAPI from '@server/api/jellyfin';
 import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
+import JellyfinAPI from '@server/api/jellyfin';
 import TheMovieDb from '@server/api/themoviedb';
 import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
@@ -39,6 +39,7 @@ function createApp() {
       err: { status?: number; message?: string },
       _req: express.Request,
       res: express.Response,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _next: express.NextFunction
     ) => {
       res
@@ -411,13 +412,8 @@ describe('POST /webhook/jellyfin', () => {
 
   it('creates an ANIME watchlist entry when the series matches the anime crosswalk', async () => {
     await attachJellyfinUser('admin@seerr.dev', 'jf-user-admin');
-    mock.method(
-      getAnimeCrosswalk(),
-      'getByTmdbId',
-      (tmdbId: number) =>
-        tmdbId === 214312
-          ? { AniList_id: 1, TheMovieDB_id: 214312 }
-          : undefined
+    mock.method(getAnimeCrosswalk(), 'getByTmdbId', (tmdbId: number) =>
+      tmdbId === 214312 ? { AniList_id: 1, TheMovieDB_id: 214312 } : undefined
     );
     mockSeriesLookup('jf-series-1', '214312', { played: false });
 

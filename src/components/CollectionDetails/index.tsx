@@ -519,9 +519,8 @@ const CollectionDetails = ({ collection }: CollectionDetailsProps) => {
               mediaType={title.mediaType}
               mutateParent={revalidate}
               favoriteStatus={
-                favoriteData?.results[
-                  favoriteStatusKey(title.id, 'tmdb')
-                ] ?? null
+                favoriteData?.results[favoriteStatusKey(title.id, 'tmdb')] ??
+                null
               }
             />
           ))}

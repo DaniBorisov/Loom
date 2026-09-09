@@ -215,10 +215,7 @@ const Sidebar = ({
                   >
                     <div className="flex flex-shrink-0 items-center px-2">
                       <span className="w-full px-4 text-xl text-gray-50">
-                        <Link
-                          href="/"
-                          className="relative block h-28 w-64"
-                        >
+                        <Link href="/" className="relative block h-28 w-64">
                           <Image
                             src="/logo_full.svg"
                             alt="Logo"

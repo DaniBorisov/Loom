@@ -1,5 +1,5 @@
-import JellyfinAPI from '@server/api/jellyfin';
 import { getAnimeCrosswalk } from '@server/api/anilist/crosswalk';
+import JellyfinAPI from '@server/api/jellyfin';
 import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
@@ -13,9 +13,9 @@ import {
 } from '@server/entity/MediaRequest';
 import { User } from '@server/entity/User';
 import { WatchlistStatus } from '@server/entity/Watchlist';
-import logger from '@server/logger';
 import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
+import logger from '@server/logger';
 import { getHostname } from '@server/utils/getHostname';
 
 export interface AutoRequestOptions {
@@ -55,10 +55,9 @@ export async function processAutoRequest(
 
   if (
     (mediaType === MediaType.TV || mediaType === MediaType.ANIME) &&
-    !user.hasPermission(
-      [Permission.AUTO_REQUEST, Permission.AUTO_REQUEST_TV],
-      { type: 'or' }
-    )
+    !user.hasPermission([Permission.AUTO_REQUEST, Permission.AUTO_REQUEST_TV], {
+      type: 'or',
+    })
   ) {
     return;
   }
@@ -156,12 +155,7 @@ async function checkJellyfinAvailability(
   const userRepository = getRepository(User);
   const admin = await userRepository.findOne({
     where: { id: 1 },
-    select: [
-      'id',
-      'jellyfinAuthToken',
-      'jellyfinDeviceId',
-      'jellyfinUserId',
-    ],
+    select: ['id', 'jellyfinAuthToken', 'jellyfinDeviceId', 'jellyfinUserId'],
   });
 
   if (!admin || !admin.jellyfinAuthToken) {
@@ -180,8 +174,7 @@ async function checkJellyfinAvailability(
 
   jellyfin.setUserId(admin.jellyfinUserId ?? '');
 
-  const includeItemTypes =
-    mediaType === MediaType.MOVIE ? 'Movie' : 'Series';
+  const includeItemTypes = mediaType === MediaType.MOVIE ? 'Movie' : 'Series';
 
   const result = await jellyfin.lookupByProviderId(
     String(tmdbId),

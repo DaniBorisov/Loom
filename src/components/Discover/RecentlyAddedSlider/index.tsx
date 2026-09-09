@@ -76,9 +76,8 @@ const RecentlyAddedSlider = () => {
             tvdbId={item.tvdbId}
             type={item.mediaType}
             favoriteStatus={
-              favoriteData?.results[
-                favoriteStatusKey(item.tmdbId, 'tmdb')
-              ] ?? null
+              favoriteData?.results[favoriteStatusKey(item.tmdbId, 'tmdb')] ??
+              null
             }
             libraryAvailable={
               availabilityData?.results[

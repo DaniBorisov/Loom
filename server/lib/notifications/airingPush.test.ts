@@ -73,10 +73,7 @@ interface SentPush {
 
 function collector(sent: SentPush[]) {
   return {
-    send: async (
-      subscription: { endpoint: string },
-      payload: Buffer
-    ) => {
+    send: async (subscription: { endpoint: string }, payload: Buffer) => {
       sent.push({
         endpoint: subscription.endpoint,
         payload: JSON.parse(payload.toString()),
@@ -122,10 +119,10 @@ describe('airing push job (DAN-47)', () => {
     assert.strictEqual(result.items, 1);
     assert.strictEqual(result.notified, 2);
     assert.strictEqual(result.deliveries, 2);
-    assert.deepStrictEqual(
-      sent.map((s) => s.endpoint).sort(),
-      ['https://push.example/admin-1', 'https://push.example/friend-1']
-    );
+    assert.deepStrictEqual(sent.map((s) => s.endpoint).sort(), [
+      'https://push.example/admin-1',
+      'https://push.example/friend-1',
+    ]);
     for (const push of sent) {
       assert.strictEqual(push.payload.notificationType, 'EPISODE_AIRING');
       assert.strictEqual(push.payload.actionUrl, '/tv/50101');

@@ -15,6 +15,10 @@ import type {
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
+import {
+  isJellyfinUnreachable,
+  markJellyfinUnreachable,
+} from '@server/lib/jellyfinBreaker';
 import type {
   ProcessableSeason,
   RunnableScanner,
@@ -23,10 +27,6 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
-import {
-  isJellyfinUnreachable,
-  markJellyfinUnreachable,
-} from '@server/lib/jellyfinBreaker';
 import { getHostname } from '@server/utils/getHostname';
 import { uniqWith } from 'lodash';
 
@@ -564,8 +564,7 @@ class JellyfinScanner
       if (timedOut) {
         markJellyfinUnreachable();
       }
-      const aborting =
-        !timedOut && e.message.includes('aborting scan');
+      const aborting = !timedOut && e.message.includes('aborting scan');
       this.log(
         timedOut
           ? 'Sync interrupted: Jellyfin request timed out (host unreachable?), aborting this run'

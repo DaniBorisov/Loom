@@ -3,8 +3,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { IntlProvider } from 'react-intl';
 import { SWRConfig } from 'swr';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('axios', () => ({
   default: { get: vi.fn(), post: vi.fn() },
@@ -20,11 +20,7 @@ vi.mock('@app/hooks/useUser', () => ({
 }));
 
 vi.mock('@app/components/TitleCard', () => {
-  const Stub = ({
-    libraryAvailable,
-  }: {
-    libraryAvailable?: boolean;
-  }) => (
+  const Stub = ({ libraryAvailable }: { libraryAvailable?: boolean }) => (
     <div
       data-testid="title-card"
       data-library={

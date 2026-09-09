@@ -100,9 +100,8 @@ const PlexWatchlistSlider = () => {
             type={item.mediaType}
             isAddedToWatchlist={true}
             favoriteStatus={
-              favoriteData?.results[
-                favoriteStatusKey(item.tmdbId, 'tmdb')
-              ] ?? null
+              favoriteData?.results[favoriteStatusKey(item.tmdbId, 'tmdb')] ??
+              null
             }
             libraryAvailable={
               availabilityData?.results[
