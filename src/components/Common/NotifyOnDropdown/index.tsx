@@ -25,6 +25,7 @@ const NotifyOnDropdown = ({ value, onChange }: NotifyOnDropdownProps) => {
   return (
     <Dropdown
       buttonType="ghost"
+      className="mr-2"
       data-testid="notify-on-selector"
       text={
         <span className="flex items-center gap-2">
