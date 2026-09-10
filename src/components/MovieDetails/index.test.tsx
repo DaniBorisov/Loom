@@ -192,9 +192,9 @@ describe('MovieDetails unified hero (DAN-57)', () => {
     // On-watchlist delete variant shows the status dropdown.
     expect(document.querySelector('select')).toBeTruthy();
 
-    // Notify dropdown button reflects the row value.
+    // Notify dropdown button always reads "Notification".
     expect(screen.getByTestId('notify-on-selector')).toHaveTextContent(
-      'New episodes only'
+      'Notification'
     );
   });
 

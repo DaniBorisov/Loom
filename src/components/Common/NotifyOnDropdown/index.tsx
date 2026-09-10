@@ -5,7 +5,7 @@ import {
   notifyOnOptionMessages,
 } from '@app/components/Common/NotifyOnSelector';
 import { BellIcon } from '@heroicons/react/24/outline';
-import { CheckIcon } from '@heroicons/react/24/solid';
+import { CheckIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { useIntl } from 'react-intl';
 
 interface NotifyOnDropdownProps {
@@ -15,29 +15,30 @@ interface NotifyOnDropdownProps {
 
 /**
  * Per-item notification override styled like the PlayButton ghost
- * dropdown (DAN-57): a bell button with the current choice that expands
- * to the four preference options.
+ * dropdown (DAN-57): a bell "Notification" button with a split chevron
+ * that expands to the preference options. The current choice is marked
+ * with a check.
  */
 const NotifyOnDropdown = ({ value, onChange }: NotifyOnDropdownProps) => {
   const intl = useIntl();
-  const currentLabel = intl.formatMessage(
-    notifyOnOptionMessages[
-      NOTIFY_ON_OPTIONS.find((option) => option.value === value)?.labelId as
-        | 'both'
-        | 'episodeAiring'
-        | 'availableInLibrary'
-        | 'none'
-    ]
-  );
 
   return (
     <Dropdown
       buttonType="ghost"
       data-testid="notify-on-selector"
       text={
-        <>
+        <span className="flex items-center gap-2">
           <BellIcon className="h-5 w-5" />
-          <span>{currentLabel}</span>
+          <span>Notification</span>
+        </span>
+      }
+      dropdownIcon={
+        <>
+          <span
+            aria-hidden="true"
+            className="-my-2 w-px self-stretch bg-gray-600"
+          />
+          <ChevronDownIcon className="h-5 w-5" />
         </>
       }
     >
