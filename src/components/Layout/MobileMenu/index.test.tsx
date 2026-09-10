@@ -92,10 +92,14 @@ describe('MobileMenu bottom bar (DAN-59)', () => {
     ) as HTMLElement | null;
     expect(sheetLink?.className).toContain('min-h-[44px]');
 
-    // Sheet is capped to the viewport with scroll (small phones).
+    // Sheet is top-anchored below the search bar and scrolls when full.
     const sheet = screen.getByTestId('mobile-more-sheet');
-    expect(sheet.className).toContain('max-h-[calc(100dvh_-_15rem)]');
     expect(sheet.className).toContain('overflow-y-auto');
+
+    // Floating pill bar with rounded corners.
+    expect(screen.getByTestId('mobile-nav-bar').className).toContain(
+      'rounded-2xl'
+    );
 
     fireEvent.click(sheetLink as HTMLElement);
 

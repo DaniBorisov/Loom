@@ -200,66 +200,71 @@ const MobileMenu = ({
   ]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[calc(4.5rem_+_env(safe-area-inset-top))] z-50 flex flex-col justify-end px-4 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))]">
       <Transition
         show={isOpen}
         as="div"
         ref={ref}
-        enter="transition duration-500"
-        enterFrom="opacity-0 translate-y-0"
-        enterTo="opacity-100 -translate-y-full"
-        leave="transition duration-500"
-        leaveFrom="opacity-100 -translate-y-full"
-        leaveTo="opacity-0 translate-y-0"
-        className="absolute left-0 right-0 top-0 flex max-h-[calc(100dvh_-_15rem)] w-full -translate-y-full flex-col space-y-2 overflow-y-auto border-t border-gray-600 bg-gray-900/90 px-6 py-4 font-semibold text-gray-100 backdrop-blur"
+        enter="transition duration-300"
+        enterFrom="opacity-0 translate-y-4"
+        enterTo="opacity-100 translate-y-0"
+        leave="transition duration-200"
+        leaveFrom="opacity-100 translate-y-0"
+        leaveTo="opacity-0 translate-y-4"
+        className="pointer-events-auto mb-3 min-h-0 overflow-y-auto rounded-2xl border border-gray-700 bg-gray-900/95 px-6 py-4 font-semibold text-gray-100 shadow-xl backdrop-blur"
         data-testid="mobile-more-sheet"
       >
-        {filteredLinks.map((link) => {
-          const isActive = router.pathname.match(link.activeRegExp);
-          return (
-            <Link
-              key={`mobile-menu-link-${link.href}`}
-              href={link.href}
-              className={`flex min-h-[44px] items-center ${
-                isActive ? 'text-indigo-500' : ''
-              }`}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setIsOpen(false);
-                }
-              }}
-              onClick={() => setIsOpen(false)}
-              role="button"
-              tabIndex={0}
-            >
-              {cloneElement(isActive ? link.svgIconSelected : link.svgIcon, {
-                className: 'h-5 w-5',
-              })}
-              <span className="ml-2">{link.content}</span>
-              {link.href === '/requests' &&
-                pendingRequestsCount > 0 &&
-                hasPermission(Permission.MANAGE_REQUESTS) && (
-                  <div className="ml-auto flex">
-                    <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
-                      {pendingRequestsCount}
-                    </Badge>
-                  </div>
-                )}
-              {link.href === '/issues' &&
-                openIssuesCount > 0 &&
-                hasPermission(Permission.MANAGE_ISSUES) && (
-                  <div className="ml-auto flex">
-                    <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
-                      {openIssuesCount}
-                    </Badge>
-                  </div>
-                )}
-            </Link>
-          );
-        })}
+        <div className="flex flex-col space-y-2">
+          {filteredLinks.map((link) => {
+            const isActive = router.pathname.match(link.activeRegExp);
+            return (
+              <Link
+                key={`mobile-menu-link-${link.href}`}
+                href={link.href}
+                className={`flex min-h-[44px] items-center ${
+                  isActive ? 'text-indigo-500' : ''
+                }`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setIsOpen(false);
+                  }
+                }}
+                onClick={() => setIsOpen(false)}
+                role="button"
+                tabIndex={0}
+              >
+                {cloneElement(isActive ? link.svgIconSelected : link.svgIcon, {
+                  className: 'h-5 w-5',
+                })}
+                <span className="ml-2">{link.content}</span>
+                {link.href === '/requests' &&
+                  pendingRequestsCount > 0 &&
+                  hasPermission(Permission.MANAGE_REQUESTS) && (
+                    <div className="ml-auto flex">
+                      <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
+                        {pendingRequestsCount}
+                      </Badge>
+                    </div>
+                  )}
+                {link.href === '/issues' &&
+                  openIssuesCount > 0 &&
+                  hasPermission(Permission.MANAGE_ISSUES) && (
+                    <div className="ml-auto flex">
+                      <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
+                        {openIssuesCount}
+                      </Badge>
+                    </div>
+                  )}
+              </Link>
+            );
+          })}
+        </div>
       </Transition>
-      <div className="padding-bottom-safe border-t border-gray-600 bg-gray-800/90 backdrop-blur">
-        <div className="flex h-full items-center justify-between px-6 py-4 text-gray-100">
+      <div
+        className="pointer-events-auto rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl backdrop-blur"
+        data-testid="mobile-nav-bar"
+      >
+        <div className="flex h-full items-center justify-between px-6 py-2 text-gray-100">
           {filteredLinks
             .slice(0, filteredLinks.length === 5 ? 5 : 4)
             .map((link) => {
