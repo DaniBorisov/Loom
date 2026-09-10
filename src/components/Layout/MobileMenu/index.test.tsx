@@ -107,4 +107,43 @@ describe('MobileMenu bottom bar (DAN-59)', () => {
       expect(document.querySelector('a[href="/settings"]')).toBeNull();
     });
   });
+
+  it('shows tab labels when idle and collapses them scrolling down', async () => {
+    Object.defineProperty(window, 'pageYOffset', {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    renderMenu();
+
+    const moviesTab = document.querySelector(
+      'a[href="/discover/movies"]'
+    ) as HTMLElement | null;
+    expect(moviesTab?.textContent).toContain('Movies');
+    expect(moviesTab?.querySelector('span:last-child')?.className).toContain(
+      'max-h-4'
+    );
+
+    // Scroll down: labels collapse to icons only.
+    Object.defineProperty(window, 'pageYOffset', {
+      value: 600,
+      writable: true,
+      configurable: true,
+    });
+    fireEvent.scroll(window);
+    expect(moviesTab?.querySelector('span:last-child')?.className).toContain(
+      'max-h-0'
+    );
+
+    // Scroll back up: labels return.
+    Object.defineProperty(window, 'pageYOffset', {
+      value: 100,
+      writable: true,
+      configurable: true,
+    });
+    fireEvent.scroll(window);
+    expect(moviesTab?.querySelector('span:last-child')?.className).toContain(
+      'max-h-4'
+    );
+  });
 });

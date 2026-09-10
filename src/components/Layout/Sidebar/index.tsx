@@ -36,6 +36,7 @@ export const menuMessages = defineMessages('components.Layout.Sidebar', {
   issues: 'Issues',
   users: 'Users',
   settings: 'Settings',
+  more: 'More',
 });
 
 interface SidebarProps {

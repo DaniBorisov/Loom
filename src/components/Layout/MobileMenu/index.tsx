@@ -69,6 +69,13 @@ const MobileMenu = ({
   const ref = useRef<HTMLDivElement>(null);
   const intl = useIntl();
   const [isOpen, setIsOpen] = useState(false);
+  // Collapses the tab labels to icons while scrolling down (DAN-59);
+  // labels return when idle or scrolling up.
+  const [scrollingDown, setScrollingDown] = useState(false);
+  const lastScrollY = useRef(0);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
   const { hasPermission } = useUser();
   const router = useRouter();
   useClickOutside(ref, () => {
@@ -80,6 +87,10 @@ const MobileMenu = ({
   });
 
   const toggle = () => setIsOpen(!isOpen);
+
+  const tabLabelClasses = `overflow-hidden whitespace-nowrap text-[10px] font-medium leading-tight transition-all duration-200 ${
+    scrollingDown ? 'max-h-0 opacity-0' : 'max-h-4 opacity-100'
+  }`;
 
   const menuLinks: MenuLink[] = [
     {
@@ -185,6 +196,25 @@ const MobileMenu = ({
   );
 
   useEffect(() => {
+    const onScroll = () => {
+      const y = window.pageYOffset;
+      setScrollingDown(y > lastScrollY.current + 4 && y > 64);
+      lastScrollY.current = y;
+      if (idleTimer.current !== undefined) {
+        clearTimeout(idleTimer.current);
+      }
+      idleTimer.current = setTimeout(() => setScrollingDown(false), 150);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (idleTimer.current !== undefined) {
+        clearTimeout(idleTimer.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (openIssuesCount) {
       revalidateIssueCount();
     }
@@ -211,7 +241,7 @@ const MobileMenu = ({
         leave="transition duration-200"
         leaveFrom="opacity-100 translate-y-0"
         leaveTo="opacity-0 translate-y-4"
-        className="pointer-events-auto mb-3 min-h-0 overflow-y-auto rounded-2xl border border-gray-700 bg-gray-900/95 px-6 py-4 font-semibold text-gray-100 shadow-xl backdrop-blur"
+        className="pointer-events-auto mb-3 min-h-0 transform-gpu overflow-y-auto rounded-2xl border border-gray-700 bg-gray-900/95 px-6 py-4 font-semibold text-gray-100 shadow-xl backdrop-blur"
         data-testid="mobile-more-sheet"
       >
         <div className="flex flex-col space-y-2">
@@ -261,7 +291,7 @@ const MobileMenu = ({
         </div>
       </Transition>
       <div
-        className="pointer-events-auto rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl backdrop-blur"
+        className="pointer-events-auto transform-gpu rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl backdrop-blur"
         data-testid="mobile-nav-bar"
       >
         <div className="flex h-full items-center justify-between px-6 py-2 text-gray-100">
@@ -284,6 +314,7 @@ const MobileMenu = ({
                       className: 'h-6 w-6',
                     }
                   )}
+                  <span className={tabLabelClasses}>{link.content}</span>
                   {link.href === '/requests' &&
                     pendingRequestsCount > 0 &&
                     hasPermission(Permission.MANAGE_REQUESTS) && (
@@ -318,6 +349,9 @@ const MobileMenu = ({
               ) : (
                 <EllipsisHorizontalIcon className="h-6 w-6" />
               )}
+              <span className={tabLabelClasses}>
+                {intl.formatMessage(menuMessages.more)}
+              </span>
             </button>
           )}
         </div>
