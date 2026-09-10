@@ -106,6 +106,9 @@ describe('MobileMenu bottom bar (DAN-59)', () => {
     await waitFor(() => {
       expect(document.querySelector('a[href="/settings"]')).toBeNull();
     });
+    // Navigating strips the hash synchronously — no race with the router,
+    // no dead history entry left behind.
+    expect(window.location.hash).toBe('');
   });
 
   it('shows tab labels when idle and collapses them scrolling down', async () => {

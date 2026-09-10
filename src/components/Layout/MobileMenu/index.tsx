@@ -107,6 +107,20 @@ const MobileMenu = ({
     }
   };
 
+  // Sheet links navigate away: strip the hash synchronously so it neither
+  // races the router push (history.back is async) nor litters the stack
+  // with a dead entry.
+  const onSheetNavigate = () => {
+    setIsOpen(false);
+    if (window.location.hash === MENU_HASH) {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + window.location.search
+      );
+    }
+  };
+
   useEffect(() => {
     const onHashChange = () => {
       if (window.location.hash !== MENU_HASH) {
@@ -285,10 +299,10 @@ const MobileMenu = ({
                 }`}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    closeSheet();
+                    onSheetNavigate();
                   }
                 }}
-                onClick={() => closeSheet()}
+                onClick={() => onSheetNavigate()}
                 role="button"
                 tabIndex={0}
               >
