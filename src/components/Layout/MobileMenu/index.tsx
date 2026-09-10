@@ -69,17 +69,71 @@ const MobileMenu = ({
   const ref = useRef<HTMLDivElement>(null);
   const intl = useIntl();
   const [isOpen, setIsOpen] = useState(false);
+  // Collapses the tab labels to icons while scrolling down (DAN-59);
+  // labels return when idle or scrolling up.
+  const [scrollingDown, setScrollingDown] = useState(false);
+  const lastScrollY = useRef(0);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
   const { hasPermission } = useUser();
   const router = useRouter();
   useClickOutside(ref, () => {
     setTimeout(() => {
       if (isOpen) {
-        setIsOpen(false);
+        closeSheet();
       }
     }, 150);
   });
 
-  const toggle = () => setIsOpen(!isOpen);
+  const toggle = () => (isOpen ? closeSheet() : openSheet());
+
+  // System back button closes the sheet instead of leaving the page
+  // (DAN-59): opening pushes a `#mobile-menu` history entry, so Back pops
+  // the entry and the hashchange below closes the sheet in place.
+  const MENU_HASH = '#mobile-menu';
+
+  const openSheet = () => {
+    if (window.location.hash !== MENU_HASH) {
+      window.location.hash = MENU_HASH;
+    }
+    setIsOpen(true);
+  };
+
+  const closeSheet = () => {
+    setIsOpen(false);
+    if (window.location.hash === MENU_HASH) {
+      window.history.back();
+    }
+  };
+
+  // Sheet links navigate away: strip the hash synchronously so it neither
+  // races the router push (history.back is async) nor litters the stack
+  // with a dead entry.
+  const onSheetNavigate = () => {
+    setIsOpen(false);
+    if (window.location.hash === MENU_HASH) {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + window.location.search
+      );
+    }
+  };
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (window.location.hash !== MENU_HASH) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const tabLabelClasses = `overflow-hidden whitespace-nowrap text-[10px] font-medium leading-tight transition-all duration-200 ${
+    scrollingDown ? 'max-h-0 opacity-0' : 'max-h-4 opacity-100'
+  }`;
 
   const menuLinks: MenuLink[] = [
     {
@@ -185,6 +239,25 @@ const MobileMenu = ({
   );
 
   useEffect(() => {
+    const onScroll = () => {
+      const y = window.pageYOffset;
+      setScrollingDown(y > lastScrollY.current + 4 && y > 64);
+      lastScrollY.current = y;
+      if (idleTimer.current !== undefined) {
+        clearTimeout(idleTimer.current);
+      }
+      idleTimer.current = setTimeout(() => setScrollingDown(false), 150);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (idleTimer.current !== undefined) {
+        clearTimeout(idleTimer.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (openIssuesCount) {
       revalidateIssueCount();
     }
@@ -200,65 +273,71 @@ const MobileMenu = ({
   ]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[calc(4.5rem_+_env(safe-area-inset-top))] z-50 flex flex-col justify-end px-4 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))]">
       <Transition
         show={isOpen}
         as="div"
         ref={ref}
-        enter="transition duration-500"
-        enterFrom="opacity-0 translate-y-0"
-        enterTo="opacity-100 -translate-y-full"
-        leave="transition duration-500"
-        leaveFrom="opacity-100 -translate-y-full"
-        leaveTo="opacity-0 translate-y-0"
-        className="absolute left-0 right-0 top-0 flex w-full -translate-y-full flex-col space-y-6 border-t border-gray-600 bg-gray-900/90 px-6 py-6 font-semibold text-gray-100 backdrop-blur"
+        enter="transition duration-300"
+        enterFrom="opacity-0 translate-y-4"
+        enterTo="opacity-100 translate-y-0"
+        leave="transition duration-200"
+        leaveFrom="opacity-100 translate-y-0"
+        leaveTo="opacity-0 translate-y-4"
+        className="pointer-events-auto mb-3 min-h-0 transform-gpu overflow-y-auto rounded-2xl border border-gray-700 bg-gray-900/95 px-6 py-4 font-semibold text-gray-100 shadow-xl backdrop-blur"
+        data-testid="mobile-more-sheet"
       >
-        {filteredLinks.map((link) => {
-          const isActive = router.pathname.match(link.activeRegExp);
-          return (
-            <Link
-              key={`mobile-menu-link-${link.href}`}
-              href={link.href}
-              className={`flex items-center ${
-                isActive ? 'text-indigo-500' : ''
-              }`}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setIsOpen(false);
-                }
-              }}
-              onClick={() => setIsOpen(false)}
-              role="button"
-              tabIndex={0}
-            >
-              {cloneElement(isActive ? link.svgIconSelected : link.svgIcon, {
-                className: 'h-5 w-5',
-              })}
-              <span className="ml-2">{link.content}</span>
-              {link.href === '/requests' &&
-                pendingRequestsCount > 0 &&
-                hasPermission(Permission.MANAGE_REQUESTS) && (
-                  <div className="ml-auto flex">
-                    <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
-                      {pendingRequestsCount}
-                    </Badge>
-                  </div>
-                )}
-              {link.href === '/issues' &&
-                openIssuesCount > 0 &&
-                hasPermission(Permission.MANAGE_ISSUES) && (
-                  <div className="ml-auto flex">
-                    <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
-                      {openIssuesCount}
-                    </Badge>
-                  </div>
-                )}
-            </Link>
-          );
-        })}
+        <div className="flex flex-col space-y-2">
+          {filteredLinks.map((link) => {
+            const isActive = router.pathname.match(link.activeRegExp);
+            return (
+              <Link
+                key={`mobile-menu-link-${link.href}`}
+                href={link.href}
+                className={`flex min-h-[44px] items-center ${
+                  isActive ? 'text-indigo-500' : ''
+                }`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onSheetNavigate();
+                  }
+                }}
+                onClick={() => onSheetNavigate()}
+                role="button"
+                tabIndex={0}
+              >
+                {cloneElement(isActive ? link.svgIconSelected : link.svgIcon, {
+                  className: 'h-5 w-5',
+                })}
+                <span className="ml-2">{link.content}</span>
+                {link.href === '/requests' &&
+                  pendingRequestsCount > 0 &&
+                  hasPermission(Permission.MANAGE_REQUESTS) && (
+                    <div className="ml-auto flex">
+                      <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
+                        {pendingRequestsCount}
+                      </Badge>
+                    </div>
+                  )}
+                {link.href === '/issues' &&
+                  openIssuesCount > 0 &&
+                  hasPermission(Permission.MANAGE_ISSUES) && (
+                    <div className="ml-auto flex">
+                      <Badge className="rounded-md border-indigo-500 bg-gradient-to-br from-indigo-600 to-purple-600">
+                        {openIssuesCount}
+                      </Badge>
+                    </div>
+                  )}
+              </Link>
+            );
+          })}
+        </div>
       </Transition>
-      <div className="padding-bottom-safe border-t border-gray-600 bg-gray-800/90 backdrop-blur">
-        <div className="flex h-full items-center justify-between px-6 py-4 text-gray-100">
+      <div
+        className="pointer-events-auto transform-gpu rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl backdrop-blur"
+        data-testid="mobile-nav-bar"
+      >
+        <div className="flex h-full items-center justify-between px-6 py-2 text-gray-100">
           {filteredLinks
             .slice(0, filteredLinks.length === 5 ? 5 : 4)
             .map((link) => {
@@ -268,7 +347,7 @@ const MobileMenu = ({
                 <Link
                   key={`mobile-menu-link-${link.href}`}
                   href={link.href}
-                  className={`relative flex flex-col items-center space-y-1 ${
+                  className={`relative flex min-h-[44px] min-w-[44px] flex-col items-center justify-center space-y-1 ${
                     isActive ? 'text-indigo-500' : ''
                   }`}
                 >
@@ -278,6 +357,7 @@ const MobileMenu = ({
                       className: 'h-6 w-6',
                     }
                   )}
+                  <span className={tabLabelClasses}>{link.content}</span>
                   {link.href === '/requests' &&
                     pendingRequestsCount > 0 &&
                     hasPermission(Permission.MANAGE_REQUESTS) && (
@@ -302,7 +382,7 @@ const MobileMenu = ({
             })}
           {filteredLinks.length > 4 && filteredLinks.length !== 5 && (
             <button
-              className={`flex flex-col items-center space-y-1 ${
+              className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center space-y-1 ${
                 isOpen ? 'text-indigo-500' : ''
               }`}
               onClick={() => toggle()}
@@ -312,6 +392,9 @@ const MobileMenu = ({
               ) : (
                 <EllipsisHorizontalIcon className="h-6 w-6" />
               )}
+              <span className={tabLabelClasses}>
+                {intl.formatMessage(menuMessages.more)}
+              </span>
             </button>
           )}
         </div>

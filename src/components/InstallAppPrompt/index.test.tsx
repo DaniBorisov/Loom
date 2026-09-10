@@ -34,6 +34,7 @@ const setStoredDismissed = (value: boolean) => {
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -92,6 +93,30 @@ describe('InstallAppPrompt', () => {
 
   it('does not show when already dismissed in storage', () => {
     setStoredDismissed(true);
+    renderPrompt();
+    dispatchBeforeInstallPrompt();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('hides for the session after closing with X', async () => {
+    const first = renderPrompt();
+    dispatchBeforeInstallPrompt();
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(
+      window.sessionStorage.getItem('install-app-prompt-dismissed-session')
+    ).toBe('true');
+    // Permanent opt-out untouched — X is session-only.
+    expect(
+      window.localStorage.getItem('install-app-prompt-dismissed')
+    ).toBeNull();
+
+    first.unmount();
+
+    // Same session, new page: stays hidden without firing install.
     renderPrompt();
     dispatchBeforeInstallPrompt();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
