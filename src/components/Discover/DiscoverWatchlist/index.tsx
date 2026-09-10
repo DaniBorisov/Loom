@@ -1,7 +1,6 @@
 import Button from '@app/components/Common/Button';
 import EmptyState from '@app/components/Common/EmptyState';
 import Header from '@app/components/Common/Header';
-import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import PageTitle from '@app/components/Common/PageTitle';
 import TmdbTitleCard from '@app/components/TitleCard/TmdbTitleCard';
 import {
@@ -25,7 +24,6 @@ import useSWRInfinite from 'swr/infinite';
 
 interface WatchlistEntry extends WatchlistItem {
   status: WatchlistStatus;
-  notifyOn: NotifyOnValue;
 }
 
 interface WatchlistPageData {
@@ -179,8 +177,6 @@ const DiscoverWatchlist = () => {
                   type={item.mediaType}
                   isAddedToWatchlist
                   canExpand
-                  watchlistId={item.id}
-                  notifyOn={item.notifyOn}
                   favoriteStatus={
                     favoriteData?.results[
                       favoriteStatusKey(item.tmdbId, 'tmdb')

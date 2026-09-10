@@ -3,8 +3,6 @@ import BlocklistModal from '@app/components/BlocklistModal';
 import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import LibraryBadge from '@app/components/Common/LibraryBadge';
-import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
-import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import StatusBadgeMini from '@app/components/Common/StatusBadgeMini';
 import Tooltip from '@app/components/Common/Tooltip';
 import RequestModal from '@app/components/RequestModal';
@@ -59,14 +57,6 @@ interface TitleCardProps {
    * back to the single-item SWR check.
    */
   favoriteStatus?: FavoriteStatusResult | null;
-  /**
-   * Watchlist row id + current preference for the per-item notification
-   * override (DAN-48). When `watchlistId` is set, the detail overlay shows
-   * a preference selector that PATCHes the row — taking precedence over
-   * the user's global default.
-   */
-  watchlistId?: number;
-  notifyOn?: NotifyOnValue;
 }
 
 const messages = defineMessages('components.TitleCard', {
@@ -82,8 +72,6 @@ const messages = defineMessages('components.TitleCard', {
   favoriteSuccess: '<strong>{title}</strong> added to favorites!',
   favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
   favoriteError: 'Failed to update favorites.',
-  notifyUpdated: 'Notification preference updated.',
-  notifyUpdateError: 'Failed to update notification preference.',
 });
 
 const TitleCard = ({
@@ -101,8 +89,6 @@ const TitleCard = ({
   source = 'tmdb',
   libraryAvailable = false,
   favoriteStatus: favoriteStatusOverride,
-  watchlistId,
-  notifyOn,
 }: TitleCardProps) => {
   const isTouch = useIsTouch();
   const intl = useIntl();
@@ -118,17 +104,6 @@ const TitleCard = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteId, setFavoriteId] = useState<number | null>(null);
-  // Per-item notification override (DAN-48). Mirrors the row value; the
-  // selector PATCHes the row on change.
-  const [notifyOnState, setNotifyOnState] = useState<NotifyOnValue>(
-    notifyOn ?? 'both'
-  );
-
-  useEffect(() => {
-    if (notifyOn) {
-      setNotifyOnState(notifyOn);
-    }
-  }, [notifyOn]);
 
   // Just to get the year from the date
   if (year) {
@@ -283,29 +258,6 @@ const TitleCard = ({
         mutateParent();
       }
       setToggleWatchlist((prevState) => !prevState);
-    }
-  };
-
-  const onNotifyOnChange = async (value: NotifyOnValue): Promise<void> => {
-    if (!watchlistId) {
-      return;
-    }
-    const previous = notifyOnState;
-    setNotifyOnState(value);
-    try {
-      await axios.patch(`/api/v1/watchlist/${watchlistId}`, {
-        notifyOn: value,
-      });
-      addToast(intl.formatMessage(messages.notifyUpdated), {
-        appearance: 'success',
-        autoDismiss: true,
-      });
-    } catch {
-      setNotifyOnState(previous);
-      addToast(intl.formatMessage(messages.notifyUpdateError), {
-        appearance: 'error',
-        autoDismiss: true,
-      });
     }
   };
 
@@ -736,19 +688,6 @@ const TitleCard = ({
               </Link>
 
               <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 px-2 py-2">
-                {showDetail && watchlistId && (
-                  <div
-                    className="w-full rounded-md bg-gray-900/80 p-2"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    role="presentation"
-                  >
-                    <NotifyOnSelector
-                      value={notifyOnState}
-                      onChange={onNotifyOnChange}
-                    />
-                  </div>
-                )}
                 {showRequestButton &&
                   (!currentStatus ||
                     currentStatus === MediaStatus.UNKNOWN ||

@@ -206,9 +206,11 @@ describe('TvDetails unified hero (DAN-57)', () => {
     });
     // On-watchlist delete variant shows the status dropdown.
     expect(document.querySelector('select')).toBeTruthy();
-    expect(
-      (screen.getByTestId('notify-on-selector') as HTMLSelectElement).value
-    ).toBe('available_in_library');
+
+    // Notify dropdown button reflects the row value.
+    expect(screen.getByTestId('notify-on-selector')).toHaveTextContent(
+      'Availability only'
+    );
   });
 
   it('PATCHes the notify override from the detail page', async () => {
@@ -226,9 +228,13 @@ describe('TvDetails unified hero (DAN-57)', () => {
       expect(screen.getByTestId('notify-on-selector')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByTestId('notify-on-selector'), {
-      target: { value: 'none' },
+    fireEvent.click(screen.getByTestId('notify-on-selector'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('notify-on-option-none')).toBeTruthy();
     });
+
+    fireEvent.click(screen.getByTestId('notify-on-option-none'));
 
     await waitFor(() => {
       expect(mockedPatch).toHaveBeenCalledWith('/api/v1/watchlist/9', {

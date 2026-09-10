@@ -1,4 +1,3 @@
-import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import TitleCard from '@app/components/TitleCard';
 import {
   cleanup,
@@ -32,9 +31,8 @@ vi.mock('@app/hooks/useSettings', () => ({
   default: () => ({ currentSettings: { cacheImages: false } }),
 }));
 
-const addToastMock = vi.fn();
 vi.mock('@app/hooks/useToasts', () => ({
-  default: () => ({ addToast: addToastMock }),
+  default: () => ({ addToast: vi.fn() }),
 }));
 
 vi.mock('@app/components/RequestModal', () => ({
@@ -56,15 +54,13 @@ vi.mock('axios', () => ({
 
 const mockedPatch = axios.patch as unknown as Mock;
 
-const renderCard = (notifyOn: NotifyOnValue = 'both') =>
+const renderCard = () =>
   render(
     <IntlProvider locale="en" defaultLocale="en">
       <TitleCard
         id={100}
         title="Test Movie"
         mediaType="movie"
-        watchlistId={7}
-        notifyOn={notifyOn}
         favoriteStatus={null}
       />
     </IntlProvider>
@@ -75,46 +71,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('TitleCard per-item notify override (DAN-48)', () => {
-  it('shows the row preference once details expand', async () => {
-    renderCard('episode_airing');
+describe('TitleCard watchlist cards (DAN-57)', () => {
+  it('shows no notify selector once details expand', async () => {
+    renderCard();
 
+    fireEvent.click(screen.getByRole('link'));
+
+    // Overlay expanded, but per-item preference editing lives on the
+    // detail page now — no selector, no row PATCH.
+    await waitFor(() => {
+      expect(screen.getByTestId('title-card-title')).toBeTruthy();
+    });
     expect(screen.queryByTestId('notify-on-selector')).toBeNull();
-
-    fireEvent.click(screen.getByRole('link'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('notify-on-selector')).toBeTruthy();
-    });
-    expect(
-      (screen.getByTestId('notify-on-selector') as HTMLSelectElement).value
-    ).toBe('episode_airing');
-  });
-
-  it('PATCHes the row and reflects the override on change', async () => {
-    renderCard('both');
-    fireEvent.click(screen.getByRole('link'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('notify-on-selector')).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByTestId('notify-on-selector'), {
-      target: { value: 'none' },
-    });
-
-    await waitFor(() => {
-      expect(mockedPatch).toHaveBeenCalledWith('/api/v1/watchlist/7', {
-        notifyOn: 'none',
-      });
-    });
-    expect(
-      (screen.getByTestId('notify-on-selector') as HTMLSelectElement).value
-    ).toBe('none');
-    expect(addToastMock).toHaveBeenCalledWith(
-      expect.stringContaining('Notification preference updated.'),
-      expect.anything()
-    );
+    expect(mockedPatch).not.toHaveBeenCalled();
   });
 
   it('hides the selector for cards without a watchlist row', async () => {

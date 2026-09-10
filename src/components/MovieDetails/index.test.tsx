@@ -177,8 +177,11 @@ describe('MovieDetails unified hero (DAN-57)', () => {
     renderDetails(listedMovie);
 
     await waitFor(() => {
-      expect(screen.getByTestId('source-badge-tmdb')).toBeTruthy();
+      expect(screen.getByTestId('media-title')).toBeTruthy();
     });
+
+    // No TMDB pill on movie pages — only crosswalk anime gets a badge.
+    expect(screen.queryByTestId('source-badge-tmdb')).toBeNull();
 
     // Available in library, on the watchlist (delete variant), favorited.
     // The favorite check + availability check resolve async, so wait.
@@ -189,10 +192,10 @@ describe('MovieDetails unified hero (DAN-57)', () => {
     // On-watchlist delete variant shows the status dropdown.
     expect(document.querySelector('select')).toBeTruthy();
 
-    // Per-item override reflects the row value.
-    expect(
-      (screen.getByTestId('notify-on-selector') as HTMLSelectElement).value
-    ).toBe('episode_airing');
+    // Notify dropdown button reflects the row value.
+    expect(screen.getByTestId('notify-on-selector')).toHaveTextContent(
+      'New episodes only'
+    );
   });
 
   it('renders the unlisted state without badge or override', async () => {
@@ -200,8 +203,10 @@ describe('MovieDetails unified hero (DAN-57)', () => {
     renderDetails(baseMovie);
 
     await waitFor(() => {
-      expect(screen.getByTestId('source-badge-tmdb')).toBeTruthy();
+      expect(screen.getByTestId('media-title')).toBeTruthy();
     });
+
+    expect(screen.queryByTestId('source-badge-tmdb')).toBeNull();
 
     expect(screen.queryByTestId('library-badge')).toBeNull();
     // Add-variant watchlist star renders; heart stays unfilled (no red).
@@ -225,9 +230,13 @@ describe('MovieDetails unified hero (DAN-57)', () => {
       expect(screen.getByTestId('notify-on-selector')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByTestId('notify-on-selector'), {
-      target: { value: 'none' },
+    fireEvent.click(screen.getByTestId('notify-on-selector'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('notify-on-option-none')).toBeTruthy();
     });
+
+    fireEvent.click(screen.getByTestId('notify-on-option-none'));
 
     await waitFor(() => {
       expect(mockedPatch).toHaveBeenCalledWith('/api/v1/watchlist/7', {

@@ -10,8 +10,8 @@ import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import LibraryBadge from '@app/components/Common/LibraryBadge';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
+import NotifyOnDropdown from '@app/components/Common/NotifyOnDropdown';
 import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
-import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import PageTitle from '@app/components/Common/PageTitle';
 import type { PlayButtonLink } from '@app/components/Common/PlayButton';
 import PlayButton from '@app/components/Common/PlayButton';
@@ -881,6 +881,12 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
               )}
             </Button>
           </Tooltip>
+          {!!watchlistEntryId && (
+            <NotifyOnDropdown
+              value={notifyOnState}
+              onChange={onNotifyOnChange}
+            />
+          )}
           <div className="z-20">
             <PlayButton links={mediaLinks} />
           </div>
@@ -945,14 +951,6 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
             </Tooltip>
           )}
         </div>
-        {!!watchlistEntryId && (
-          <div className="mt-2 max-w-xs">
-            <NotifyOnSelector
-              value={notifyOnState}
-              onChange={onNotifyOnChange}
-            />
-          </div>
-        )}
       </div>
       <div className="media-overview">
         <div className="media-overview-left">

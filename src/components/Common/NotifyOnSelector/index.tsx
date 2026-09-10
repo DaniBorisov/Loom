@@ -22,6 +22,9 @@ const messages = defineMessages('components.Common.NotifyOnSelector', {
   none: 'Nothing',
 });
 
+/** Shared option labels, reused by the detail-page dropdown variant. */
+export const notifyOnOptionMessages = messages;
+
 interface NotifyOnSelectorProps {
   value: NotifyOnValue;
   onChange: (value: NotifyOnValue) => void;
