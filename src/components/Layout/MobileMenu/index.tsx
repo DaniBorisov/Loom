@@ -211,7 +211,7 @@ const MobileMenu = ({
         leave="transition duration-500"
         leaveFrom="opacity-100 -translate-y-full"
         leaveTo="opacity-0 translate-y-0"
-        className="absolute left-0 right-0 top-0 flex max-h-[calc(100dvh_-_12rem)] w-full -translate-y-full flex-col space-y-2 overflow-y-auto border-t border-gray-600 bg-gray-900/90 px-6 py-4 font-semibold text-gray-100 backdrop-blur"
+        className="absolute left-0 right-0 top-0 flex max-h-[calc(100dvh_-_15rem)] w-full -translate-y-full flex-col space-y-2 overflow-y-auto border-t border-gray-600 bg-gray-900/90 px-6 py-4 font-semibold text-gray-100 backdrop-blur"
         data-testid="mobile-more-sheet"
       >
         {filteredLinks.map((link) => {

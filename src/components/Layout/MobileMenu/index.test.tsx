@@ -94,7 +94,7 @@ describe('MobileMenu bottom bar (DAN-59)', () => {
 
     // Sheet is capped to the viewport with scroll (small phones).
     const sheet = screen.getByTestId('mobile-more-sheet');
-    expect(sheet.className).toContain('max-h-[calc(100dvh_-_12rem)]');
+    expect(sheet.className).toContain('max-h-[calc(100dvh_-_15rem)]');
     expect(sheet.className).toContain('overflow-y-auto');
 
     fireEvent.click(sheetLink as HTMLElement);
