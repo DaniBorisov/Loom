@@ -88,7 +88,7 @@ const Layout = ({ children }: LayoutProps) => {
       </div>
       <BackToTop />
 
-      <div className="relative mb-[calc(5rem+env(safe-area-inset-bottom))] flex w-0 min-w-0 flex-1 flex-col sm:mb-16 lg:ml-64">
+      <div className="relative mb-[calc(5rem_+_env(safe-area-inset-bottom))] flex w-0 min-w-0 flex-1 flex-col sm:mb-16 lg:ml-64">
         <PullToRefresh />
         <div
           className={`searchbar fixed left-0 right-0 top-0 z-10 flex flex-shrink-0 transition duration-300 ${

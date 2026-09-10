@@ -33,7 +33,7 @@ const BackToTop = () => {
       aria-label="Back to top"
       data-testid="back-to-top"
       onClick={scrollToTop}
-      className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-gray-600 bg-gray-800/90 text-gray-100 shadow-lg backdrop-blur transition hover:border-gray-200 sm:bottom-8"
+      className="fixed bottom-[calc(6rem_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-gray-600 bg-gray-800/90 text-gray-100 shadow-lg backdrop-blur transition hover:border-gray-200 sm:bottom-8"
     >
       <ArrowUpIcon className="h-5 w-5" />
     </button>

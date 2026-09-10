@@ -44,9 +44,13 @@ describe('BackToTop (DAN-59)', () => {
       expect(screen.getByTestId('back-to-top')).toBeTruthy();
     });
 
-    // 44px touch target, floating above the bottom bar.
+    // 44px touch target, floating above the bottom bar. The calc needs
+    // underscores (Tailwind turns them into the spaces CSS requires).
     expect(screen.getByTestId('back-to-top').className).toContain('h-11');
     expect(screen.getByTestId('back-to-top').className).toContain('w-11');
+    expect(screen.getByTestId('back-to-top').className).toContain(
+      'bottom-[calc(6rem_+_env(safe-area-inset-bottom))]'
+    );
 
     fireEvent.click(screen.getByTestId('back-to-top'));
     expect(window.scrollTo).toHaveBeenCalledWith({
