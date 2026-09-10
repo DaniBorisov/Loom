@@ -291,11 +291,7 @@ const MobileMenu = ({
         </div>
       </Transition>
       <div
-        className={`pointer-events-auto transform-gpu rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl backdrop-blur transition-transform duration-300 ${
-          scrollingDown && !isOpen
-            ? 'translate-y-[calc(100%_+_2rem)]'
-            : 'translate-y-0'
-        }`}
+        className="pointer-events-auto transform-gpu rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl backdrop-blur"
         data-testid="mobile-nav-bar"
       >
         <div className="flex h-full items-center justify-between px-6 py-2 text-gray-100">

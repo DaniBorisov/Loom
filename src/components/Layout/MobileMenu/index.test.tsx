@@ -146,25 +146,9 @@ describe('MobileMenu bottom bar (DAN-59)', () => {
       'max-h-4'
     );
 
-    // Bar hides while scrolling down (above) and returns after.
-    Object.defineProperty(window, 'pageYOffset', {
-      value: 600,
-      writable: true,
-      configurable: true,
-    });
-    fireEvent.scroll(window);
-    expect(screen.getByTestId('mobile-nav-bar').className).toContain(
-      'translate-y-[calc(100%_+_2rem)]'
-    );
-
-    Object.defineProperty(window, 'pageYOffset', {
-      value: 100,
-      writable: true,
-      configurable: true,
-    });
-    fireEvent.scroll(window);
-    expect(screen.getByTestId('mobile-nav-bar').className).toContain(
-      'translate-y-0'
+    // The bar itself always stays pinned, labels aside.
+    expect(screen.getByTestId('mobile-nav-bar').className).not.toContain(
+      'translate-y-'
     );
   });
 });
