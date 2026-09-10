@@ -82,7 +82,8 @@ tvRoutes.get('/:id', async (req, res, next) => {
       media,
       !!watchlistEntry,
       watchlistEntry?.id,
-      watchlistEntry?.status
+      watchlistEntry?.status,
+      watchlistEntry?.notifyOn
     );
 
     // TMDB issue where it doesnt fallback to English when no overview is available in requested locale.

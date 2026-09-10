@@ -10,9 +10,12 @@ import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import LibraryBadge from '@app/components/Common/LibraryBadge';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
+import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
+import NotifyOnSelector from '@app/components/Common/NotifyOnSelector';
 import PageTitle from '@app/components/Common/PageTitle';
 import type { PlayButtonLink } from '@app/components/Common/PlayButton';
 import PlayButton from '@app/components/Common/PlayButton';
+import SourceBadge from '@app/components/Common/SourceBadge';
 import Tag from '@app/components/Common/Tag';
 import Tooltip from '@app/components/Common/Tooltip';
 import ExternalLinkBlock from '@app/components/ExternalLinkBlock';
@@ -52,6 +55,7 @@ import {
   HeartIcon as HeartIconSolid,
 } from '@heroicons/react/24/solid';
 import { type RatingResponse } from '@server/api/ratings';
+import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import { IssueStatus } from '@server/constants/issue';
 import { MediaStatus, MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
@@ -115,8 +119,9 @@ const messages = defineMessages('components.MovieDetails', {
   favoriteSuccess: '<strong>{title}</strong> added to favorites!',
   favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
   favoriteError: 'Failed to update favorites.',
+  notifyUpdated: 'Notification preference updated.',
+  notifyUpdateError: 'Failed to update notification preference.',
 });
-
 interface MovieDetailsProps {
   movie?: MovieDetailsType;
 }
@@ -147,6 +152,9 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   const { addToast } = useToasts();
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteId, setFavoriteId] = useState<number | null>(null);
+  // Per-item notification override (DAN-57): synced from the row the API
+  // returns, PATCHed on change like the TitleCard control.
+  const [notifyOnState, setNotifyOnState] = useState<NotifyOnValue>('both');
 
   useEffect(() => {
     if (!movie?.id) return;
@@ -192,8 +200,42 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
       setToggleWatchlist(!data.onUserWatchlist);
       setWatchlistEntryId(data.watchlistId ?? null);
       setWatchlistStatus(data.watchlistStatus ?? 'want_to_watch');
+      if (data.watchlistNotifyOn) {
+        setNotifyOnState(data.watchlistNotifyOn as NotifyOnValue);
+      }
     }
-  }, [data?.onUserWatchlist, data?.watchlistId, data?.watchlistStatus]);
+    // Field-level deps on purpose: re-sync only when the row changes, not
+    // on every SWR revalidation (identity change).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    data?.onUserWatchlist,
+    data?.watchlistId,
+    data?.watchlistStatus,
+    data?.watchlistNotifyOn,
+  ]);
+
+  const onNotifyOnChange = async (value: NotifyOnValue): Promise<void> => {
+    if (!watchlistEntryId) {
+      return;
+    }
+    const previous = notifyOnState;
+    setNotifyOnState(value);
+    try {
+      await axios.patch(`/api/v1/watchlist/${watchlistEntryId}`, {
+        notifyOn: value,
+      });
+      addToast(intl.formatMessage(messages.notifyUpdated), {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    } catch {
+      setNotifyOnState(previous);
+      addToast(intl.formatMessage(messages.notifyUpdateError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
 
   const sortedCrew = useMemo(
     () => sortCrewPriority(data?.credits.crew ?? []),
@@ -646,6 +688,17 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                   <LibraryBadge />
                 </span>
               )}
+            <span className="ml-2">
+              <SourceBadge
+                source={
+                  (data.keywords ?? []).some(
+                    (keyword) => keyword.id === ANIME_KEYWORD_ID
+                  )
+                    ? 'anime'
+                    : 'tmdb'
+                }
+              />
+            </span>
             {settings.currentSettings.movie4kEnabled &&
               hasPermission(
                 [
@@ -851,6 +904,14 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
               </Tooltip>
             )}
         </div>
+        {!!watchlistEntryId && (
+          <div className="mt-2 max-w-xs">
+            <NotifyOnSelector
+              value={notifyOnState}
+              onChange={onNotifyOnChange}
+            />
+          </div>
+        )}
       </div>
       <div className="media-overview">
         <div className="media-overview-left">
