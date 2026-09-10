@@ -1,10 +1,40 @@
+import defineMessages from '@app/utils/defineMessages';
+import { useIntl } from 'react-intl';
+
+const messages = defineMessages('components.PWAHeader', {
+  siteDescription:
+    'Loom is a media request manager for your Jellyfin, Plex, and Emby libraries.',
+});
+
 interface PWAHeaderProps {
   applicationTitle?: string;
+  applicationUrl?: string;
 }
 
-const PWAHeader = ({ applicationTitle = 'Loom' }: PWAHeaderProps) => {
+const PWAHeader = ({
+  applicationTitle = 'Loom',
+  applicationUrl = '',
+}: PWAHeaderProps) => {
+  const intl = useIntl();
+  // Scrapers require absolute image URLs; omit image tags when the admin
+  // has not configured an application URL yet (DAN-65).
+  const baseUrl = applicationUrl.replace(/\/+$/, '');
+  const description = intl.formatMessage(messages.siteDescription);
   return (
     <>
+      <meta property="og:type" content="website" />
+      <meta property="og:site_name" content={applicationTitle} />
+      <meta property="og:title" content={applicationTitle} />
+      <meta property="og:description" content={description} />
+      {baseUrl !== '' && (
+        <meta property="og:image" content={`${baseUrl}/og-banner.png`} />
+      )}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={applicationTitle} />
+      <meta name="twitter:description" content={description} />
+      {baseUrl !== '' && (
+        <meta name="twitter:image" content={`${baseUrl}/og-banner.png`} />
+      )}
       <link
         rel="apple-touch-icon"
         sizes="180x180"
@@ -164,7 +194,7 @@ const PWAHeader = ({ applicationTitle = 'Loom' }: PWAHeaderProps) => {
       />
       <meta name="format-detection" content="telephone=no" />
       <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#7A1F1F" />
+      <meta name="theme-color" content="#7A1F1F" />
       <meta name="application-name" content={applicationTitle} />
     </>
   );

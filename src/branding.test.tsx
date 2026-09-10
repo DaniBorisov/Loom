@@ -129,6 +129,12 @@ describe('Loom rename (DAN-54)', () => {
     const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
 
     assert.ok(readme.includes('# Loom'));
-    assert.ok(!readme.includes('seerr-team/seerr'));
+    // DAN-62 requires the fork attribution link, but only there — the
+    // rest of the README must not reference the old repos.
+    const [beforeCredits] = readme.split('## Credits');
+    assert.ok(!beforeCredits.includes('seerr-team/seerr'));
+    assert.ok(!beforeCredits.includes('Fallenbagel/jellyseerr'));
+    assert.ok(readme.includes('## Credits'));
+    assert.ok(readme.includes('seerr-team/seerr'));
   });
 });

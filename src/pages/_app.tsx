@@ -215,6 +215,7 @@ const CoreApp: Omit<NextAppComponentType, 'origGetInitialProps'> = ({
                 />
                 <PWAHeader
                   applicationTitle={currentSettings.applicationTitle}
+                  applicationUrl={currentSettings.applicationUrl}
                 />
               </Head>
               <StatusChecker />
