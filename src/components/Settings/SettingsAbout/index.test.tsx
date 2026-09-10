@@ -68,10 +68,10 @@ describe('SettingsAbout credits (DAN-62)', () => {
     });
 
     const link = screen.getByRole('link', {
-      name: 'https://github.com/Fallenbagel/jellyseerr',
+      name: 'https://github.com/seerr-team/seerr',
     });
     expect(link.getAttribute('href')).toBe(
-      'https://github.com/Fallenbagel/jellyseerr'
+      'https://github.com/seerr-team/seerr'
     );
     expect(link.getAttribute('target')).toBe('_blank');
   });

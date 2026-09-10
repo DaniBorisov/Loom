@@ -28,7 +28,7 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   supportseerr: 'Support Loom',
   contribute: 'Make a Contribution',
   credits: 'Credits',
-  forkedfrom: 'Forked from Jellyseerr',
+  forkedfrom: 'Forked from Seerr',
   documentation: 'Documentation',
   outofdate: 'Out of Date',
   uptodate: 'Up to Date',
@@ -207,12 +207,12 @@ const SettingsAbout = () => {
         <List title={intl.formatMessage(messages.credits)}>
           <List.Item title={intl.formatMessage(messages.forkedfrom)}>
             <a
-              href="https://github.com/Fallenbagel/jellyseerr"
+              href="https://github.com/seerr-team/seerr"
               target="_blank"
               rel="noreferrer"
               className="text-indigo-500 transition duration-300 hover:underline"
             >
-              https://github.com/Fallenbagel/jellyseerr
+              https://github.com/seerr-team/seerr
             </a>
           </List.Item>
         </List>
