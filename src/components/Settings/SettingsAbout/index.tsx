@@ -27,6 +27,8 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   appDataPath: 'Data Directory',
   supportseerr: 'Support Loom',
   contribute: 'Make a Contribution',
+  credits: 'Credits',
+  forkedfrom: 'Forked from Jellyseerr',
   documentation: 'Documentation',
   outofdate: 'Out of Date',
   uptodate: 'Up to Date',
@@ -197,6 +199,20 @@ const SettingsAbout = () => {
               className="text-indigo-500 transition duration-300 hover:underline"
             >
               https://opencollective.com/seerr
+            </a>
+          </List.Item>
+        </List>
+      </div>
+      <div className="section">
+        <List title={intl.formatMessage(messages.credits)}>
+          <List.Item title={intl.formatMessage(messages.forkedfrom)}>
+            <a
+              href="https://github.com/Fallenbagel/jellyseerr"
+              target="_blank"
+              rel="noreferrer"
+              className="text-indigo-500 transition duration-300 hover:underline"
+            >
+              https://github.com/Fallenbagel/jellyseerr
             </a>
           </List.Item>
         </List>
