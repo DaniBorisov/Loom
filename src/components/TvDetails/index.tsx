@@ -15,7 +15,6 @@ import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import PageTitle from '@app/components/Common/PageTitle';
 import type { PlayButtonLink } from '@app/components/Common/PlayButton';
 import PlayButton from '@app/components/Common/PlayButton';
-import SourceBadge from '@app/components/Common/SourceBadge';
 import StatusBadgeMini from '@app/components/Common/StatusBadgeMini';
 import Tag from '@app/components/Common/Tag';
 import Tooltip from '@app/components/Common/Tooltip';
@@ -740,9 +739,6 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                   <LibraryBadge />
                 </span>
               )}
-            <span className="ml-2">
-              <SourceBadge source={isAnime ? 'anime' : 'tmdb'} />
-            </span>
             {settings.currentSettings.series4kEnabled &&
               hasPermission(
                 [

@@ -170,7 +170,7 @@ const setupNetwork = (
 };
 
 describe('TvDetails unified hero (DAN-57)', () => {
-  it('badges crosswalk anime as Anime', async () => {
+  it('renders crosswalk anime with no source badge', async () => {
     const animeShow = {
       ...baseShow,
       keywords: [{ id: 210024, name: 'Anime' }],
@@ -179,8 +179,9 @@ describe('TvDetails unified hero (DAN-57)', () => {
     renderDetails(animeShow);
 
     await waitFor(() => {
-      expect(screen.getByTestId('source-badge-anime')).toBeTruthy();
+      expect(screen.getByTestId('media-title')).toBeTruthy();
     });
+    expect(screen.queryByTestId('source-badge-anime')).toBeNull();
     expect(screen.queryByTestId('source-badge-tmdb')).toBeNull();
   });
 
@@ -196,8 +197,11 @@ describe('TvDetails unified hero (DAN-57)', () => {
     renderDetails(listedShow);
 
     await waitFor(() => {
-      expect(screen.getByTestId('source-badge-tmdb')).toBeTruthy();
+      expect(screen.getByTestId('media-title')).toBeTruthy();
     });
+
+    // No source badges on TV pages either.
+    expect(screen.queryByTestId('source-badge-tmdb')).toBeNull();
 
     // The favorite check + availability check resolve async, so wait.
     await waitFor(() => {
