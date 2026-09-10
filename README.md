@@ -70,7 +70,7 @@ You can help improve Loom too! Check out our [Contribution Guide](./CONTRIBUTING
 
 ## Credits
 
-**Loom** is a fork of [Jellyseerr](https://github.com/Fallenbagel/jellyseerr) (which itself builds on [Overseerr](https://github.com/sct/overseerr)). Thank you to the Jellyseerr and Overseerr contributors for the foundation this project stands on.
+**Loom** is a fork of [Seerr](https://github.com/seerr-team/seerr) (formerly Jellyseerr, which itself builds on [Overseerr](https://github.com/sct/overseerr)). Thank you to the Seerr, Jellyseerr, and Overseerr contributors for the foundation this project stands on.
 
 ## License
 
