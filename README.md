@@ -67,3 +67,11 @@ Our [Code of Conduct](./CODE_OF_CONDUCT.md) applies to all Loom community channe
 
 ## Contributing
 You can help improve Loom too! Check out our [Contribution Guide](./CONTRIBUTING.md) to get started.
+
+## Credits
+
+**Loom** is a fork of [Jellyseerr](https://github.com/Fallenbagel/jellyseerr) (which itself builds on [Overseerr](https://github.com/sct/overseerr)). Thank you to the Jellyseerr and Overseerr contributors for the foundation this project stands on.
+
+## License
+
+Loom is distributed under the terms of the original MIT license. The unmodified original license text is preserved in [LICENSE](./LICENSE).
