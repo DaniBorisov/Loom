@@ -283,12 +283,12 @@ const MobileMenu = ({
                 className={`flex min-h-[44px] items-center ${
                   isActive ? 'text-indigo-500' : ''
                 }`}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  closeSheet();
-                }
-              }}
-              onClick={() => closeSheet()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    closeSheet();
+                  }
+                }}
+                onClick={() => closeSheet()}
                 role="button"
                 tabIndex={0}
               >
