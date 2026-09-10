@@ -81,12 +81,41 @@ const MobileMenu = ({
   useClickOutside(ref, () => {
     setTimeout(() => {
       if (isOpen) {
-        setIsOpen(false);
+        closeSheet();
       }
     }, 150);
   });
 
-  const toggle = () => setIsOpen(!isOpen);
+  const toggle = () => (isOpen ? closeSheet() : openSheet());
+
+  // System back button closes the sheet instead of leaving the page
+  // (DAN-59): opening pushes a `#mobile-menu` history entry, so Back pops
+  // the entry and the hashchange below closes the sheet in place.
+  const MENU_HASH = '#mobile-menu';
+
+  const openSheet = () => {
+    if (window.location.hash !== MENU_HASH) {
+      window.location.hash = MENU_HASH;
+    }
+    setIsOpen(true);
+  };
+
+  const closeSheet = () => {
+    setIsOpen(false);
+    if (window.location.hash === MENU_HASH) {
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (window.location.hash !== MENU_HASH) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const tabLabelClasses = `overflow-hidden whitespace-nowrap text-[10px] font-medium leading-tight transition-all duration-200 ${
     scrollingDown ? 'max-h-0 opacity-0' : 'max-h-4 opacity-100'
@@ -254,12 +283,12 @@ const MobileMenu = ({
                 className={`flex min-h-[44px] items-center ${
                   isActive ? 'text-indigo-500' : ''
                 }`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setIsOpen(false);
-                  }
-                }}
-                onClick={() => setIsOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  closeSheet();
+                }
+              }}
+              onClick={() => closeSheet()}
                 role="button"
                 tabIndex={0}
               >

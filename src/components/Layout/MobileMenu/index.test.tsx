@@ -151,4 +151,25 @@ describe('MobileMenu bottom bar (DAN-59)', () => {
       'translate-y-'
     );
   });
+
+  it('pushes a history entry so system Back closes the sheet in place', async () => {
+    window.location.hash = '';
+    renderMenu();
+
+    fireEvent.click(screen.getByRole('button'));
+
+    await waitFor(() => {
+      expect(document.querySelector('a[href="/settings"]')).toBeTruthy();
+    });
+    expect(window.location.hash).toBe('#mobile-menu');
+
+    // System Back: pops the entry, hashchange closes without navigation.
+    window.location.hash = '';
+    window.dispatchEvent(new Event('hashchange'));
+
+    await waitFor(() => {
+      expect(document.querySelector('a[href="/settings"]')).toBeNull();
+    });
+    expect(window.location.pathname).toBe('/');
+  });
 });
