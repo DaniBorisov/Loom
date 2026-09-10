@@ -22,6 +22,7 @@ const messages = defineMessages('components.InstallAppPrompt', {
 });
 
 const STORAGE_KEY = 'install-app-prompt-dismissed';
+const SESSION_KEY = 'install-app-prompt-dismissed-session';
 
 export const getDismissed = (storage: Pick<Storage, 'getItem'>): boolean =>
   storage.getItem(STORAGE_KEY) === 'true';
@@ -49,6 +50,10 @@ const InstallAppPrompt = ({
       return;
     }
     if (getDismissed(window.localStorage)) {
+      return;
+    }
+    // Dismissed via X earlier this session — stay hidden until next visit.
+    if (window.sessionStorage.getItem(SESSION_KEY) === 'true') {
       return;
     }
 
@@ -84,6 +89,9 @@ const InstallAppPrompt = ({
   const handleDismiss = (persist: boolean) => {
     if (persist) {
       setDismissed(window.localStorage);
+    } else {
+      // X closes it for this session only; the checkbox is the forever opt-out.
+      window.sessionStorage.setItem(SESSION_KEY, 'true');
     }
     setShow(false);
   };
