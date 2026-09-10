@@ -211,7 +211,7 @@ const CoreApp: Omit<NextAppComponentType, 'origGetInitialProps'> = ({
                 <title>{currentSettings.applicationTitle}</title>
                 <meta
                   name="viewport"
-                  content="initial-scale=1, viewport-fit=cover, width=device-width"
+                  content="initial-scale=1, viewport-fit=cover, width=device-width, interactive-widget=resizes-content"
                 />
                 <PWAHeader
                   applicationTitle={currentSettings.applicationTitle}
