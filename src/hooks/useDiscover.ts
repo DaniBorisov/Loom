@@ -1,6 +1,7 @@
 import useToasts from '@app/hooks/useToasts';
 import globalMessages from '@app/i18n/globalMessages';
 import { MediaStatus } from '@server/constants/media';
+import axios from 'axios';
 import { useEffect } from 'react';
 import { useIntl } from 'react-intl';
 import useSWRInfinite from 'swr/infinite';
@@ -155,10 +156,16 @@ const useDiscover = <
 
   useEffect(() => {
     if (error && titles.length) {
-      addToast(intl.formatMessage(globalMessages.error), {
-        appearance: 'error',
-        autoDismiss: true,
-      });
+      // Network-level failures (server down/starting, no response) are
+      // already covered by the connection banner — toasting each one
+      // spams the screen on every revalidation while the server is
+      // unreachable. Only toast real API errors.
+      if (!axios.isAxiosError(error) || error.response) {
+        addToast(intl.formatMessage(globalMessages.error), {
+          appearance: 'error',
+          autoDismiss: true,
+        });
+      }
       console.error('Error while fetching discover titles:', error);
     }
   }, [data, error, addToast, intl, titles.length]);
