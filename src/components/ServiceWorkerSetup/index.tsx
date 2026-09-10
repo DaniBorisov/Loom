@@ -14,6 +14,18 @@ const ServiceWorkerSetup = () => {
       return;
     }
 
+    // Development builds skip registration: the CacheFirst app-shell
+    // route would otherwise serve stale dev chunks and hide fresh edits
+    // behind the active worker (DAN-57). Opt back in for local push/PWA
+    // testing with localStorage `devSwEnabled = 'true'`.
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      localStorage.getItem('devSwEnabled') !== 'true'
+    ) {
+      console.log('[SW] Skipping registration in development.');
+      return;
+    }
+
     navigator.serviceWorker
       .register('/sw.js')
       .then(async (registration) => {

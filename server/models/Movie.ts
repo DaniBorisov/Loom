@@ -88,6 +88,7 @@ export interface MovieDetails {
   onUserWatchlist?: boolean;
   watchlistId?: number;
   watchlistStatus?: string;
+  watchlistNotifyOn?: string;
 }
 
 export const mapProductionCompany = (
@@ -107,7 +108,8 @@ export const mapMovieDetails = (
   media?: Media,
   userWatchlist?: boolean,
   watchlistId?: number,
-  watchlistStatus?: string
+  watchlistStatus?: string,
+  watchlistNotifyOn?: string
 ): MovieDetails => ({
   id: movie.id,
   adult: movie.adult,
@@ -157,4 +159,5 @@ export const mapMovieDetails = (
   onUserWatchlist: userWatchlist,
   watchlistId,
   watchlistStatus,
+  watchlistNotifyOn,
 });

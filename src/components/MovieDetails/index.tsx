@@ -10,6 +10,8 @@ import Button from '@app/components/Common/Button';
 import CachedImage from '@app/components/Common/CachedImage';
 import LibraryBadge from '@app/components/Common/LibraryBadge';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
+import NotifyOnDropdown from '@app/components/Common/NotifyOnDropdown';
+import type { NotifyOnValue } from '@app/components/Common/NotifyOnSelector';
 import PageTitle from '@app/components/Common/PageTitle';
 import type { PlayButtonLink } from '@app/components/Common/PlayButton';
 import PlayButton from '@app/components/Common/PlayButton';
@@ -115,8 +117,9 @@ const messages = defineMessages('components.MovieDetails', {
   favoriteSuccess: '<strong>{title}</strong> added to favorites!',
   favoriteRemoved: '<strong>{title}</strong> removed from favorites.',
   favoriteError: 'Failed to update favorites.',
+  notifyUpdated: 'Notification preference updated.',
+  notifyUpdateError: 'Failed to update notification preference.',
 });
-
 interface MovieDetailsProps {
   movie?: MovieDetailsType;
 }
@@ -147,6 +150,9 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   const { addToast } = useToasts();
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteId, setFavoriteId] = useState<number | null>(null);
+  // Per-item notification override (DAN-57): synced from the row the API
+  // returns, PATCHed on change like the TitleCard control.
+  const [notifyOnState, setNotifyOnState] = useState<NotifyOnValue>('both');
 
   useEffect(() => {
     if (!movie?.id) return;
@@ -192,8 +198,42 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
       setToggleWatchlist(!data.onUserWatchlist);
       setWatchlistEntryId(data.watchlistId ?? null);
       setWatchlistStatus(data.watchlistStatus ?? 'want_to_watch');
+      if (data.watchlistNotifyOn) {
+        setNotifyOnState(data.watchlistNotifyOn as NotifyOnValue);
+      }
     }
-  }, [data?.onUserWatchlist, data?.watchlistId, data?.watchlistStatus]);
+    // Field-level deps on purpose: re-sync only when the row changes, not
+    // on every SWR revalidation (identity change).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    data?.onUserWatchlist,
+    data?.watchlistId,
+    data?.watchlistStatus,
+    data?.watchlistNotifyOn,
+  ]);
+
+  const onNotifyOnChange = async (value: NotifyOnValue): Promise<void> => {
+    if (!watchlistEntryId) {
+      return;
+    }
+    const previous = notifyOnState;
+    setNotifyOnState(value);
+    try {
+      await axios.patch(`/api/v1/watchlist/${watchlistEntryId}`, {
+        notifyOn: value,
+      });
+      addToast(intl.formatMessage(messages.notifyUpdated), {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    } catch {
+      setNotifyOnState(previous);
+      addToast(intl.formatMessage(messages.notifyUpdateError), {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    }
+  };
 
   const sortedCrew = useMemo(
     () => sortCrewPriority(data?.credits.crew ?? []),
@@ -784,6 +824,12 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
               )}
             </Button>
           </Tooltip>
+          {!!watchlistEntryId && (
+            <NotifyOnDropdown
+              value={notifyOnState}
+              onChange={onNotifyOnChange}
+            />
+          )}
           <div className="z-20">
             <PlayButton links={mediaLinks} />
           </div>
