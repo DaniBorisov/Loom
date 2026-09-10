@@ -219,7 +219,7 @@ const MobileMenu = ({
             <Link
               key={`mobile-menu-link-${link.href}`}
               href={link.href}
-              className={`flex items-center ${
+              className={`flex min-h-[44px] items-center ${
                 isActive ? 'text-indigo-500' : ''
               }`}
               onKeyDown={(e) => {
@@ -268,7 +268,7 @@ const MobileMenu = ({
                 <Link
                   key={`mobile-menu-link-${link.href}`}
                   href={link.href}
-                  className={`relative flex flex-col items-center space-y-1 ${
+                  className={`relative flex min-h-[44px] min-w-[44px] flex-col items-center justify-center space-y-1 ${
                     isActive ? 'text-indigo-500' : ''
                   }`}
                 >
@@ -302,7 +302,7 @@ const MobileMenu = ({
             })}
           {filteredLinks.length > 4 && filteredLinks.length !== 5 && (
             <button
-              className={`flex flex-col items-center space-y-1 ${
+              className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center space-y-1 ${
                 isOpen ? 'text-indigo-500' : ''
               }`}
               onClick={() => toggle()}

@@ -100,7 +100,7 @@ const InstallAppPrompt = ({
 
   return (
     <div
-      className="fixed bottom-16 left-0 right-0 z-40 flex justify-center px-4 sm:bottom-8"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 flex justify-center px-4 sm:bottom-8"
       role="dialog"
       aria-label={intl.formatMessage(messages.installApp)}
     >
