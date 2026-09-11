@@ -945,7 +945,7 @@
   "components.Settings.SettingsAbout.Releases.viewongithub": "View on GitHub",
   "components.Settings.Credits.anilist": "AniList",
   "components.Settings.Credits.myanimelist": "MyAnimeList",
-  "components.Settings.Credits.tmdbattribution": "This product uses the TMDb API but is not endorsed or certified by TMDb",
+  "components.Settings.Credits.tmdbattribution": "This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB",
   "components.Settings.Credits.usagenotice": "Loom is a personal, non-commercial media companion for self-hosted setups.",
   "components.Settings.Credits.usagetitle": "Usage",
   "components.Settings.SettingsAbout.about": "About",
