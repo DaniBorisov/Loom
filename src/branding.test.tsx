@@ -60,6 +60,13 @@ describe('Loom branding (DAN-63)', () => {
     expect(dark).toContain('#FFFFFF');
   });
 
+  it('keeps the sidebar wordmark cropped to its artwork', () => {
+    // Transparent padding inside the viewBox shrinks the rendered mark
+    // under object-fit: contain — keep it cropped to content bounds.
+    const svg = readFileSync(join(ROOT, 'public/logo_full.svg'), 'utf8');
+    expect(svg).toContain('viewBox="6 14 224 64"');
+  });
+
   it('links only splash screens that exist on disk', () => {
     render(
       <IntlProvider locale="en" defaultLocale="en">
