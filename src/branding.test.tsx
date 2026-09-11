@@ -45,7 +45,8 @@ describe('Loom branding (DAN-63)', () => {
     ).toBe('Loom');
   });
 
-  it('serves Loom logo SVGs carrying the brand color', () => {    // Dark-surface wordmark (white text) and light-surface fallback.
+  it('serves Loom logo SVGs carrying the brand color', () => {
+    // Dark-surface wordmark (white text) and light-surface fallback.
     for (const file of [
       'public/logo_full.svg',
       'public/logo_full_light.svg',
