@@ -77,3 +77,5 @@ You can help improve Loom too! Check out our [Contribution Guide](./CONTRIBUTING
 ## License
 
 Loom is distributed under the terms of the original MIT license. The unmodified original license text is preserved in [LICENSE](./LICENSE).
+
+Third-party API terms and compliance notes are documented in [docs/compliance.md](./docs/compliance.md).
