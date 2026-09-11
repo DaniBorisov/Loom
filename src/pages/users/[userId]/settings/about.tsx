@@ -1,5 +1,5 @@
-import UserSettings from '@app/components/UserProfile/UserSettings';
 import CreditsBlock from '@app/components/Settings/SettingsAbout/CreditsBlock';
+import UserSettings from '@app/components/UserProfile/UserSettings';
 import useRouteGuard from '@app/hooks/useRouteGuard';
 import { Permission } from '@app/hooks/useUser';
 import type { NextPage } from 'next';
