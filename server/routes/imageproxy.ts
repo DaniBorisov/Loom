@@ -1,4 +1,4 @@
-import ImageProxy from '@server/lib/imageproxy';
+import ImageProxy, { MAX_TMDB_IMAGE_TTL_SECONDS } from '@server/lib/imageproxy';
 import logger from '@server/logger';
 import { Router } from 'express';
 
@@ -13,6 +13,8 @@ function initTmdbImageProxy() {
         maxRequests: 20,
         maxRPS: 50,
       },
+      // TMDB terms: cached content must not outlive 6 months (DAN-70).
+      maxTtlSeconds: MAX_TMDB_IMAGE_TTL_SECONDS,
     });
   }
   return _tmdbImageProxy;

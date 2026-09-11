@@ -24,6 +24,12 @@ const baseCacheDirectory = process.env.CONFIG_DIRECTORY
   ? `${process.env.CONFIG_DIRECTORY}/cache/images`
   : path.join(__dirname, '../../config/cache/images');
 
+/**
+ * TMDB API terms cap cached TMDB content at 6 months (DAN-70). Applied to
+ * TMDB-sourced images; other upstreams keep their own cache headers.
+ */
+export const MAX_TMDB_IMAGE_TTL_SECONDS = 15552000; // 180 days
+
 class ImageProxy {
   public static async clearCache(key: string) {
     let deletedImages = 0;
@@ -131,6 +137,7 @@ class ImageProxy {
   private axios: AxiosInstance;
   private cacheVersion;
   private key;
+  private maxTtlSeconds: number;
 
   constructor(
     key: string,
@@ -139,10 +146,12 @@ class ImageProxy {
       cacheVersion?: number;
       rateLimitOptions?: rateLimitOptions;
       headers?: Record<string, string>;
+      maxTtlSeconds?: number;
     } = {}
   ) {
     this.cacheVersion = options.cacheVersion ?? 1;
     this.key = key;
+    this.maxTtlSeconds = options.maxTtlSeconds ?? Number.POSITIVE_INFINITY;
     this.axios = axios.create({
       baseURL: baseUrl,
       headers: options.headers,
@@ -280,6 +289,10 @@ class ImageProxy {
       );
 
       if (!maxAge) maxAge = 86400;
+      // Never retain an image past the caller's TTL ceiling (e.g. the
+      // TMDB 6-month limit). Stale entries are revalidated in the
+      // background on next read, so this refreshes rather than breaks.
+      maxAge = Math.min(maxAge, this.maxTtlSeconds);
       const expireAt = Date.now() + maxAge * 1000;
       const etag = (response.headers.etag ?? '').replace(/[^\w-]/g, '');
 
