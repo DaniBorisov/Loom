@@ -30,7 +30,7 @@ describe('CreditsBlock', () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        'This product uses the TMDb API but is not endorsed or certified by TMDb'
+        'This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB'
       )
     ).toBeTruthy();
     expect(screen.getByTestId('tmdb-logo')).toBeTruthy();

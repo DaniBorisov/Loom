@@ -9,7 +9,7 @@ const messages = defineMessages('components.Settings.Credits', {
   anilist: 'AniList',
   myanimelist: 'MyAnimeList',
   tmdbattribution:
-    'This product uses the TMDb API but is not endorsed or certified by TMDb',
+    'This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB',
   usagetitle: 'Usage',
   usagenotice:
     'Loom is a personal, non-commercial media companion for self-hosted setups.',
