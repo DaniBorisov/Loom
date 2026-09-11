@@ -240,7 +240,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
   };
 
   const sortedCrew = useMemo(
-    () => sortCrewPriority(data?.credits.crew ?? []),
+    () => sortCrewPriority(data?.credits?.crew ?? []),
     [data]
   );
 
@@ -1545,7 +1545,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
           </div>
         </div>
       </div>
-      {data.credits.cast.length > 0 && (
+      {(data.credits?.cast ?? []).length > 0 && (
         <>
           <div className="slider-header">
             <Link
@@ -1561,7 +1561,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
             sliderKey="cast"
             isLoading={false}
             isEmpty={false}
-            items={data.credits.cast.slice(0, 20).map((person) => (
+            items={(data.credits?.cast ?? []).slice(0, 20).map((person) => (
               <PersonCard
                 key={`cast-item-${person.id}`}
                 personId={person.id}

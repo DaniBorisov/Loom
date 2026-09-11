@@ -248,4 +248,16 @@ describe('MovieDetails unified hero (DAN-57)', () => {
       expect.anything()
     );
   });
+
+  it('renders without credits instead of crashing', async () => {
+    const { credits: _omitted, ...withoutCredits } = baseMovie;
+    const movie = withoutCredits as unknown as MovieDetailsType;
+    setupNetwork(movie, false, false);
+    renderDetails(movie);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('media-title')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('notify-on-selector')).toBeNull();
+  });
 });

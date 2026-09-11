@@ -246,4 +246,15 @@ describe('TvDetails unified hero (DAN-57)', () => {
       });
     });
   });
+
+  it('renders without credits instead of crashing', async () => {
+    const { credits: _omitted, ...withoutCredits } = baseShow;
+    const show = withoutCredits as unknown as TvDetailsType;
+    setupNetwork(show, false, false);
+    renderDetails(show);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('media-title')).toBeTruthy();
+    });
+  });
 });
