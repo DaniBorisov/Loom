@@ -1,20 +1,19 @@
 import PWAHeader from '@app/components/PWAHeader';
 import { cleanup, render } from '@testing-library/react';
-import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it } from 'vitest';
 
+// NOTE: intentionally no IntlProvider — PWAHeader renders inside
+// next/head and must never depend on React context (SSR crash, DAN-65).
 const renderHeader = (props?: {
   applicationTitle?: string;
   applicationUrl?: string;
 }) => {
   const container = document.createElement('div');
   document.head.appendChild(container);
-  render(
-    <IntlProvider locale="en" defaultLocale="en">
-      <PWAHeader {...props} />
-    </IntlProvider>,
-    { container, baseElement: document.head as unknown as Element }
-  );
+  render(<PWAHeader {...props} />, {
+    container,
+    baseElement: document.head as unknown as Element,
+  });
   return container;
 };
 
@@ -45,6 +44,19 @@ describe('PWAHeader social metadata (DAN-65)', () => {
     expect(meta('meta[name="twitter:image"]')).toBe(
       'https://loom.example.com/og-banner.png'
     );
+  });
+
+  it('trims whitespace and slashes from the application URL', () => {
+    renderHeader({
+      applicationTitle: 'Loom',
+      applicationUrl: 'https://loom.example.com/ ',
+    });
+
+    expect(
+      document.head
+        .querySelector('meta[property="og:image"]')
+        ?.getAttribute('content')
+    ).toBe('https://loom.example.com/og-banner.png');
   });
 
   it('omits image tags when no application URL is configured', () => {
