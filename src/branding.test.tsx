@@ -45,8 +45,7 @@ describe('Loom branding (DAN-63)', () => {
     ).toBe('Loom');
   });
 
-  it('serves Loom logo SVGs carrying the brand color', () => {
-    // Dark-surface wordmark (white text) and light-surface fallback.
+  it('serves Loom logo SVGs carrying the brand color', () => {    // Dark-surface wordmark (white text) and light-surface fallback.
     for (const file of [
       'public/logo_full.svg',
       'public/logo_full_light.svg',
@@ -58,6 +57,13 @@ describe('Loom branding (DAN-63)', () => {
     }
     const dark = readFileSync(join(ROOT, 'public/logo_full.svg'), 'utf8');
     expect(dark).toContain('#FFFFFF');
+  });
+
+  it('keeps the sidebar wordmark cropped to its artwork', () => {
+    // Transparent padding inside the viewBox shrinks the rendered mark
+    // under object-fit: contain — keep it cropped to content bounds.
+    const svg = readFileSync(join(ROOT, 'public/logo_full.svg'), 'utf8');
+    expect(svg).toContain('viewBox="6 14 224 64"');
   });
 
   it('links only splash screens that exist on disk', () => {
