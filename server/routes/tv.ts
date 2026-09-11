@@ -54,7 +54,7 @@ tvRoutes.get('/:id', async (req, res, next) => {
   try {
     const { tmdbTv, tmdbId } = await resolveTmdbId(tmdb, requestedId);
 
-    const isAnime = tmdbTv.keywords.results.some(
+    const isAnime = (tmdbTv.keywords?.results ?? []).some(
       (keyword: TmdbKeyword) => keyword.id === ANIME_KEYWORD_ID
     );
 
@@ -115,7 +115,7 @@ tvRoutes.get('/:id/season/:seasonNumber', async (req, res, next) => {
   try {
     const { tmdbTv, tmdbId } = await resolveTmdbId(tmdb, requestedId);
 
-    const metadataProvider = tmdbTv.keywords.results.some(
+    const metadataProvider = (tmdbTv.keywords?.results ?? []).some(
       (keyword: TmdbKeyword) => keyword.id === ANIME_KEYWORD_ID
     )
       ? await getMetadataProvider('anime')

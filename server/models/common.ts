@@ -118,26 +118,28 @@ export const mapCrew = (person: TmdbCreditCrew): Crew => ({
   profilePath: person.profile_path,
 });
 
-export const mapExternalIds = (eids: TmdbExternalIds): ExternalIds => ({
-  facebookId: eids.facebook_id,
-  freebaseId: eids.freebase_id,
-  freebaseMid: eids.freebase_mid,
-  imdbId: eids.imdb_id,
-  instagramId: eids.instagram_id,
-  tvdbId: eids.tvdb_id,
-  tvrageId: eids.tvrage_id,
-  twitterId: eids.twitter_id,
+export const mapExternalIds = (eids?: TmdbExternalIds): ExternalIds => ({
+  facebookId: eids?.facebook_id,
+  freebaseId: eids?.freebase_id,
+  freebaseMid: eids?.freebase_mid,
+  imdbId: eids?.imdb_id,
+  instagramId: eids?.instagram_id,
+  tvdbId: eids?.tvdb_id,
+  tvrageId: eids?.tvrage_id,
+  twitterId: eids?.twitter_id,
 });
 
 export const mapVideos = (videoResult: TmdbVideoResult): Video[] =>
-  videoResult?.results.map(({ key, name, size, type, site }: TmdbVideo) => ({
-    site,
-    key,
-    name,
-    size,
-    type,
-    url: siteUrlCreator(site, key),
-  }));
+  (videoResult?.results ?? []).map(
+    ({ key, name, size, type, site }: TmdbVideo) => ({
+      site,
+      key,
+      name,
+      size,
+      type,
+      url: siteUrlCreator(site, key),
+    })
+  );
 
 export const mapWatchProviders = (watchProvidersResult: {
   [iso_3166_1: string]: TmdbWatchProviders;

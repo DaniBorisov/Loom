@@ -171,10 +171,10 @@ export const mapTvDetails = (
   watchlistStatus?: string,
   watchlistNotifyOn?: string
 ): TvDetails => ({
-  createdBy: show.created_by,
-  episodeRunTime: show.episode_run_time,
+  createdBy: show.created_by ?? [],
+  episodeRunTime: show.episode_run_time ?? [],
   firstAirDate: show.first_air_date,
-  genres: show.genres.map((genre) => ({
+  genres: (show.genres ?? []).map((genre) => ({
     id: genre.id,
     name: genre.name,
   })),
@@ -185,7 +185,7 @@ export const mapTvDetails = (
   languages: show.languages,
   lastAirDate: show.last_air_date,
   name: show.name,
-  networks: show.networks.map(mapNetwork),
+  networks: (show.networks ?? []).map(mapNetwork),
   numberOfEpisodes: show.number_of_episodes,
   numberOfSeasons: show.number_of_seasons,
   originCountry: show.origin_country,
@@ -194,20 +194,20 @@ export const mapTvDetails = (
   tagline: show.tagline,
   overview: show.overview,
   popularity: show.popularity,
-  productionCompanies: show.production_companies.map((company) => ({
+  productionCompanies: (show.production_companies ?? []).map((company) => ({
     id: company.id,
     name: company.name,
     originCountry: company.origin_country,
     logoPath: company.logo_path,
   })),
-  productionCountries: show.production_countries,
-  contentRatings: show.content_ratings,
-  spokenLanguages: show.spoken_languages.map((language) => ({
+  productionCountries: show.production_countries ?? [],
+  contentRatings: show.content_ratings ?? { results: [] },
+  spokenLanguages: (show.spoken_languages ?? []).map((language) => ({
     englishName: language.english_name,
     iso_639_1: language.iso_639_1,
     name: language.name,
   })),
-  seasons: show.seasons.map(mapSeasonResult),
+  seasons: (show.seasons ?? []).map(mapSeasonResult),
   status: show.status,
   type: show.type,
   voteAverage: show.vote_average,
@@ -221,11 +221,11 @@ export const mapTvDetails = (
     : undefined,
   posterPath: show.poster_path,
   credits: {
-    cast: show.aggregate_credits.cast.map(mapAggregateCast),
-    crew: show.credits.crew.map(mapCrew),
+    cast: (show.aggregate_credits?.cast ?? []).map(mapAggregateCast),
+    crew: (show.credits?.crew ?? []).map(mapCrew),
   },
   externalIds: mapExternalIds(show.external_ids),
-  keywords: show.keywords.results.map((keyword) => ({
+  keywords: (show.keywords?.results ?? []).map((keyword) => ({
     id: keyword.id,
     name: keyword.name,
   })),
