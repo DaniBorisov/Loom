@@ -1,37 +1,33 @@
-import defineMessages from '@app/utils/defineMessages';
-import { useIntl } from 'react-intl';
-
-const messages = defineMessages('components.PWAHeader', {
-  siteDescription:
-    'Loom is a media request manager for your Jellyfin, Plex, and Emby libraries.',
-});
-
 interface PWAHeaderProps {
   applicationTitle?: string;
   applicationUrl?: string;
 }
 
+// Static English copy: this renders inside next/head, which must not
+// depend on React context providers (DAN-65 fix — useIntl here crashed
+// SSR with missing-intl errors).
+const SITE_DESCRIPTION =
+  'Loom is a media request manager for your Jellyfin, Plex, and Emby libraries.';
+
 const PWAHeader = ({
   applicationTitle = 'Loom',
   applicationUrl = '',
 }: PWAHeaderProps) => {
-  const intl = useIntl();
   // Scrapers require absolute image URLs; omit image tags when the admin
   // has not configured an application URL yet (DAN-65).
-  const baseUrl = applicationUrl.replace(/\/+$/, '');
-  const description = intl.formatMessage(messages.siteDescription);
+  const baseUrl = applicationUrl.trim().replace(/\/+$/, '');
   return (
     <>
       <meta property="og:type" content="website" />
       <meta property="og:site_name" content={applicationTitle} />
       <meta property="og:title" content={applicationTitle} />
-      <meta property="og:description" content={description} />
+      <meta property="og:description" content={SITE_DESCRIPTION} />
       {baseUrl !== '' && (
         <meta property="og:image" content={`${baseUrl}/og-banner.png`} />
       )}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={applicationTitle} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:description" content={SITE_DESCRIPTION} />
       {baseUrl !== '' && (
         <meta name="twitter:image" content={`${baseUrl}/og-banner.png`} />
       )}
