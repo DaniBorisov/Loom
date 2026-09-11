@@ -15,8 +15,17 @@ const CollectionPage: NextPage<CollectionPageProps> = ({ collection }) => {
 export const getServerSideProps: GetServerSideProps<
   CollectionPageProps
 > = async (ctx) => {
+  // TMDB IDs are positive integers — reject anything else before it can
+  // reach the request URL (CodeQL js/request-forgery, DAN-107). The
+  // validated number (not the raw string) is interpolated below, so path
+  // traversal sequences cannot survive.
+  const collectionId = Number(ctx.query.collectionId);
+  if (!Number.isInteger(collectionId) || collectionId <= 0) {
+    return { notFound: true };
+  }
+
   const response = await axios.get<Collection>(
-    `http://${getHostAndPort()}/api/v1/collection/${ctx.query.collectionId}`,
+    `http://${getHostAndPort()}/api/v1/collection/${collectionId}`,
     {
       headers: ctx.req?.headers?.cookie
         ? { cookie: ctx.req.headers.cookie }

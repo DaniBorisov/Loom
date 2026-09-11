@@ -15,8 +15,17 @@ const TvPage: NextPage<TvPageProps> = ({ tv }) => {
 export const getServerSideProps: GetServerSideProps<TvPageProps> = async (
   ctx
 ) => {
+  // TMDB IDs are positive integers — reject anything else before it can
+  // reach the request URL (CodeQL js/request-forgery, DAN-107). The
+  // validated number (not the raw string) is interpolated below, so path
+  // traversal sequences cannot survive.
+  const tvId = Number(ctx.query.tvId);
+  if (!Number.isInteger(tvId) || tvId <= 0) {
+    return { notFound: true };
+  }
+
   const response = await axios.get<TvDetailsType>(
-    `http://${getHostAndPort()}/api/v1/tv/${ctx.query.tvId}`,
+    `http://${getHostAndPort()}/api/v1/tv/${tvId}`,
     {
       headers: ctx.req?.headers?.cookie
         ? { cookie: ctx.req.headers.cookie }
