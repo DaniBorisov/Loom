@@ -26,6 +26,7 @@ import RequestButton from '@app/components/RequestButton';
 import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import useDeepLinks from '@app/hooks/useDeepLinks';
+import { useFavoriteStatus } from '@app/hooks/useFavoriteStatus';
 import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import useLocale from '@app/hooks/useLocale';
 import useSettings from '@app/hooks/useSettings';
@@ -154,23 +155,16 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   // returns, PATCHed on change like the TitleCard control.
   const [notifyOnState, setNotifyOnState] = useState<NotifyOnValue>('both');
 
+  // Single-item check as SWR (DAN-99/DAN-113): replaces the hand-rolled
+  // axios fetch; deduped and cached like the card checks.
+  const { data: favoriteData } = useFavoriteStatus(movie?.id, 'tmdb');
+
   useEffect(() => {
-    if (!movie?.id) return;
-    const checkFavorite = async () => {
-      try {
-        const res = await axios.get(
-          `/api/v1/favorites/check?mediaId=${movie.id}&source=tmdb`
-        );
-        setIsFavorited(res.data.isFavorited);
-        if (res.data.favoriteId) {
-          setFavoriteId(res.data.favoriteId);
-        }
-      } catch {
-        // Ignore
-      }
-    };
-    checkFavorite();
-  }, [movie?.id]);
+    if (favoriteData) {
+      setIsFavorited(favoriteData.isFavorited);
+      setFavoriteId(favoriteData.favoriteId);
+    }
+  }, [favoriteData]);
 
   const {
     data,
