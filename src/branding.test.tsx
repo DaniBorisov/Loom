@@ -97,7 +97,7 @@ describe('Loom branding (DAN-63)', () => {
       theme_color: string;
       background_color: string;
       icons: { src: string }[];
-      shortcuts: { icons: { src: string }[] }[];
+      shortcuts: { name: string; url: string; icons: { src: string }[] }[];
     };
 
     // DAN-64: installed app identifies as Loom with brand colors.
@@ -119,6 +119,17 @@ describe('Loom branding (DAN-63)', () => {
         true
       );
     }
+
+    // DAN-112: the Discover shortcut must actually lead to Discover —
+    // since DAN-56, ./ is the Watchlist, not Discover.
+    const discover = manifest.shortcuts.find(
+      (shortcut) => shortcut.name === 'Discover'
+    );
+    assert.ok(discover, 'Discover shortcut exists');
+    assert.ok(
+      discover.url.includes('discover'),
+      `Discover shortcut points at ${discover.url}`
+    );
   });
 });
 
