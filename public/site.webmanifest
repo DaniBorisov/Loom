@@ -34,7 +34,7 @@
   "shortcuts": [
     {
       "name": "Discover",
-      "url": "./",
+      "url": "./discover",
       "icons": [
         {
           "src": "./sparkles-icon-192x192.png",
