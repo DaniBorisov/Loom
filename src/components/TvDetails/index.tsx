@@ -29,6 +29,7 @@ import Slider from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import Season from '@app/components/TvDetails/Season';
 import useDeepLinks from '@app/hooks/useDeepLinks';
+import { useFavoriteStatus } from '@app/hooks/useFavoriteStatus';
 import { useJellyfinAvailability } from '@app/hooks/useJellyfinAvailability';
 import useLocale from '@app/hooks/useLocale';
 import useSettings from '@app/hooks/useSettings';
@@ -151,23 +152,16 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
   // returns, PATCHed on change like the TitleCard control.
   const [notifyOnState, setNotifyOnState] = useState<NotifyOnValue>('both');
 
+  // Single-item check as SWR (DAN-99/DAN-113): replaces the hand-rolled
+  // axios fetch; deduped and cached like the card checks.
+  const { data: favoriteData } = useFavoriteStatus(tv?.id, 'tmdb');
+
   useEffect(() => {
-    if (!tv?.id) return;
-    const checkFavorite = async () => {
-      try {
-        const res = await axios.get(
-          `/api/v1/favorites/check?mediaId=${tv.id}&source=tmdb`
-        );
-        setIsFavorited(res.data.isFavorited);
-        if (res.data.favoriteId) {
-          setFavoriteId(res.data.favoriteId);
-        }
-      } catch {
-        // Ignore
-      }
-    };
-    checkFavorite();
-  }, [tv?.id]);
+    if (favoriteData) {
+      setIsFavorited(favoriteData.isFavorited);
+      setFavoriteId(favoriteData.favoriteId);
+    }
+  }, [favoriteData]);
   const { addToast } = useToasts();
 
   const {
