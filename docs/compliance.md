@@ -9,12 +9,12 @@ integrates with. Terms change without notice — re-check every 6–12 months
 or before any major release. (Epic 10; started under DAN-71, finalized
 under DAN-66.)
 
-## TheTVDB (v4 API) — verified 2026-09-11 (DAN-71)
+## TheTVDB (v4 API) — verified 2026-09-11 (DAN-71), corrected 2026-09-13 (DAN-114)
 
-**Status: live integration exists — the "static dataset only" assumption is
-refuted. Documented as a known risk per project decision.**
+**Status: live integration exists, using a shared application-wide key.
+Confirmed legitimate — not a known risk.**
 
-What the app actually does:
+What the app does (unchanged from verification):
 
 - `server/api/tvdb` talks to `https://api4.thetvdb.com/v4` (login, token
   refresh, series extended/episodes/seasons lookups).
@@ -26,15 +26,19 @@ What the app actually does:
   artwork CDN proxy (`artworks.thetvdb.com` via `routes/imageproxy.ts`),
   dedicated `tvdb` response cache bucket (`server/lib/cache.ts`).
 
-Authentication (the risk):
+Authentication (resolved):
 
-- Login uses a **hardcoded project API key baked into source**
-  (`server/api/tvdb/index.ts`) with **no per-user PIN**:
-  `getInstance()` constructs the client pin-less, no settings field for a
-  PIN exists, and the `pin?` constructor parameter is unwired.
-- Under TVDB v4 terms, direct API access requires a negotiated license or
-  a per-user subscription PIN. Server-wide access on a shared key without
-  per-user PINs does not match that model.
+- The hardcoded key (`server/api/tvdb/index.ts`) was added upstream in
+  Seerr/Jellyseerr (commit titled "chore: add correct application-wide
+  key", predating this fork by over a year) — consistent with TVDB's
+  negotiated-license path for shared, application-wide usage (an
+  alternative to the per-user subscription PIN model). Confirmed by the
+  project owner: this key is inherited from Seerr/Jellyseerr and is
+  available for fork usage, resolving the earlier open question about
+  whether that arrangement's scope extends to downstream forks.
+- No per-user PIN is required or wired up (the `pin?` constructor
+  parameter exists but is unused everywhere `Tvdb.getInstance()` is
+  called), and none is needed under this arrangement.
 
 Explicitly out of scope for this app:
 
@@ -46,10 +50,9 @@ Explicitly out of scope for this app:
 
 Rules going forward:
 
-- Do not add new TVDB-dependent features without revisiting this section.
-- If TVDB usage expands, the compliant paths are removing the provider
-  (TMDB-only; fallbacks already exist) or wiring per-user PINs (settings
-  field → client constructor), with each user holding a TVDB subscription.
+- Do not swap in a different/personal TVDB API key without revisiting
+  this section — the compliant status specifically depends on using
+  the inherited application-wide key, not a substitute.
 
 ## Jellyseerr / Seerr (MIT) — verified 2026-09-10 (DAN-62)
 
