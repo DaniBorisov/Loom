@@ -110,9 +110,10 @@ class Tvdb extends ExternalAPI implements TvShowProvider {
   }
 
   async login(): Promise<TvdbLoginResponse> {
-    // Known compliance risk (DAN-71, docs/compliance.md): this is a shared
-    // project key with no per-user PIN. Do not expand TVDB usage without
-    // revisiting (remove the provider or wire per-user PINs instead).
+    // Compliance note (DAN-114, docs/compliance.md): this shared
+    // application-wide key is inherited from Seerr/Jellyseerr and confirmed
+    // legitimate for fork usage. Do not swap in a different/personal key
+    // without revisiting — compliant status depends on this specific key.
     let body: { apiKey: string; pin?: string } = {
       apiKey: 'd00d9ecb-a9d0-4860-958a-74b14a041405',
     };
