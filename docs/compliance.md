@@ -70,7 +70,7 @@ How we comply:
 
 ## TMDB (API Terms of Use, updated 2023-10-20) — verified 2026-09-11 (DAN-66)
 
-Source: <https://www.themoviedb.org/api-terms-of-use>. Free for
+Source: [TMDB API Terms of Use](https://www.themoviedb.org/api-terms-of-use). Free for
 non-commercial use only; commercial use needs a separate written agreement.
 Notable restrictions beyond attribution: 6-month maximum cache of TMDB
 content, no ML/AI training on TMDB content, no use as an image host, no
@@ -93,7 +93,7 @@ How we comply:
 
 ## AniList (GraphQL API) — verified 2026-09-11 (DAN-66)
 
-Source: <https://anilist.gitbook.io/anilist-apiv2-docs>. Free for
+Source: [AniList API docs](https://anilist.gitbook.io/anilist-apiv2-docs). Free for
 non-commercial use. Rate limit 90 requests/min (429 + `Retry-After` on
 excess; burst limiter on top; raises by email request only, currently not
 being granted). Naming restrictions concern only apps calling themselves
@@ -109,7 +109,7 @@ How we comply:
 
 ## MyAnimeList (API v2) — verified 2026-09-11 (DAN-66)
 
-Source: <https://myanimelist.net/apiconfig/references/api/v2>. Requires
+Source: [MAL API reference](https://myanimelist.net/apiconfig/references/api/v2). Requires
 official app/client-ID registration; per-user actions use OAuth2 bearer
 tokens, public reads may use the `X-MAL-CLIENT-ID` header.
 
